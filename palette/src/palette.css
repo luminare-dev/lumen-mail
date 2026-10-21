@@ -3,7 +3,7 @@
  *
  * Colours come from the skin's --lm-* tokens (src/less/lumen-tokens.less), which inherit into the
  * shadow root, so the palette follows Elastic's light or dark mode exactly. The fallback after
- * each token is the same value (light in .lm, dark in .lm.is-dark; tests/test_palette_css.py
+ * each token is the same value (light in .lm, dark in .lm.is-dark; tests/test_palette_consistency.py
  * keeps them equal to the LESS tokens) for a page where the Lumen stylesheet is missing.
  * Logical properties only, so a right-to-left page mirrors the layout.
  */

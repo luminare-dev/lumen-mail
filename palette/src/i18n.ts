@@ -4,7 +4,7 @@
 // Roundcube's core labels (mail, compose, inbox ...) in the user's language, and the skin's own
 // labels from skins/lumen/localization/<lang>.inc under the "lumen." prefix (Roundcube reads
 // en_US.inc first and the user's language on top, so every key always has a text). The bundle
-// carries no copy of the texts. The build guarantees they exist: tests/test_palette_labels.py
+// carries no copy of the texts. The build guarantees they exist: tests/test_palette_consistency.py
 // keeps OWN_KEYS and CORE_KEYS equal to the wrapper's labels and the localization files, and the
 // generator's drift check stops if the installed Roundcube lacks one of the core labels.
 
