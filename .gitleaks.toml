@@ -16,8 +16,8 @@ secretGroup = 1
 keywords = ["des_key"]
 
   [[rules.allowlists]]
-  description = "documentation placeholders and Roundcube's sample value"
-  regexes = ['''(?i)example|placeholder|changeme''', '''^rcmail-!24ByteDESkey\*Str$''']
+  description = "documentation placeholders, Roundcube's sample value and the tests' marker value"
+  regexes = ['''(?i)example|placeholder|changeme''', '''^rcmail-!24ByteDESkey\*Str$''', '''^SECRET-XYZ-\d+$''']
 
 [[rules]]
 id = "dsn-credentials"
@@ -28,7 +28,8 @@ keywords = ["://"]
 
   [[rules.allowlists]]
   description = "documentation placeholders and templated values"
-  regexes = ['''(?i)^(pass(word)?|secret|changeme|example|placeholder)$''', '''^\$\{?[A-Za-z_]''', '''^\{\{.*\}\}$''']
+  regexes = ['''(?i)^(pass(word)?|secret|changeme|example|placeholder)$''', '''^\$\{?[A-Za-z_]''', '''^\{\{.*\}\}$''',
+             '''^\{[A-Za-z_][^{}]*\}$''']
 
 [[rules]]
 id = "cfx-server-key"
