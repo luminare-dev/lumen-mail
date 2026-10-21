@@ -1,0 +1,18 @@
+# lumen-mail-sync.timer: run lumen-mail-sync.service every 2 minutes, as a fallback for the .path unit.
+#
+# Catches what the path unit cannot see (for example an update while the path unit was stopped,
+# or a rebuild that was deferred for lack of memory). A run with nothing to do takes a fraction
+# of a second, starts no compiler, writes nothing and, with the service's LogLevelMax=notice,
+# leaves nothing in the journal.
+[Unit]
+Description=lumen-mail: check the Lumen webmail skin every 2 minutes
+Documentation=https://github.com/luminare-dev/lumen-mail/blob/main/docs/update-safety.md
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=2min
+AccuracySec=10s
+Unit=lumen-mail-sync.service
+
+[Install]
+WantedBy=timers.target

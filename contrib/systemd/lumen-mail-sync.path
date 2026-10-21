@@ -1,0 +1,31 @@
+# lumen-mail-sync.path: start lumen-mail-sync.service the moment a Roundcube update begins.
+#
+# KeyHelp updates Roundcube with "rm -rf /home/keyhelp/www/roundcube/*", extracts the new release,
+# rewrites config/config.inc.php and runs chown -R, all within about two seconds. PathChanged=
+# fires when a watched file is deleted (IN_DELETE_SELF), closed after writing, changes attributes,
+# or appears or disappears inside a watched parent folder. systemd keeps a watch on every parent
+# folder, so the files are watched again when their folders come back (systemd.path(5)).
+#
+#   config/config.inc.php     deleted early by the rm (config/ sorts before program/ and skins/),
+#                             written again by KeyHelp at the end of the update, and on every save
+#                             of KeyHelp's Configuration -> Webmail page (a cheap no-op run)
+#   program/include/iniset.php   deleted by the rm, extracted again with the new version
+#   skins/lumen/meta.json     anything that removes or damages skins/lumen outside an update
+#
+# The service is started while the update is still running; it waits for the extracted tree
+# itself. While it runs, this unit does not watch, and when it ends, PathChanged= does not fire for
+# changes made during the run. sync covers that: it compares the watched files before and after
+# each pass and runs another pass if they changed. lumen-mail itself never writes any of these
+# files outside a run, so it cannot trigger itself in a loop. The timer is the fallback.
+[Unit]
+Description=lumen-mail: watch for Roundcube updates that remove the Lumen skin
+Documentation=https://github.com/luminare-dev/lumen-mail/blob/main/docs/update-safety.md
+
+[Path]
+PathChanged=/home/keyhelp/www/roundcube/config/config.inc.php
+PathChanged=/home/keyhelp/www/roundcube/program/include/iniset.php
+PathChanged=/home/keyhelp/www/roundcube/skins/lumen/meta.json
+Unit=lumen-mail-sync.service
+
+[Install]
+WantedBy=paths.target

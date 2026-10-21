@@ -1,0 +1,94 @@
+# lumen-mail-sync.service: put skins/lumen back after a Roundcube update, then rebuild it.
+#
+# Started by lumen-mail-sync.path (as soon as an update removes or rewrites Roundcube files) and by
+# lumen-mail-sync.timer (every 2 minutes, as a fallback). lumen-mail never installs these units;
+# docs/install.md has the commands. Paths and user are those of a KeyHelp server:
+#
+#   /opt/lumen-mail                  the runtime (install-runtime), owned by root
+#   /home/keyhelp/www/roundcube      the Roundcube root, owned by keyhelp:keyhelp
+#   /var/lib/lumen-mail              state: last good build, backups, lock (StateDirectory=)
+#
+# For another server, replace the Roundcube path here and in the .path unit, and set User= and
+# Group= to the owner of <roundcube>/skins (docs/install.md, "Plain Roundcube").
+#
+# What a run does (docs/update-safety.md): wait until the Roundcube tree is extracted, restore
+# skins/lumen from the last good build at once if it is missing or damaged (no Node, milliseconds),
+# then rebuild if the stamp is stale, after the tree has been quiet for 5 s and only with 400 MB of
+# memory available. A run with nothing to do writes nothing and logs nothing at notice level.
+#
+# Exit codes: 0 done or nothing to do; 1, 3, 4 the rebuild failed (the active build stays; the unit
+# shows as failed and the error is in the journal); 75 try again later (lock busy, update still
+# running, too little memory, back-off after a failure): counted as success, the timer retries.
+[Unit]
+Description=lumen-mail: restore and rebuild the Lumen webmail skin after Roundcube updates
+Documentation=https://github.com/luminare-dev/lumen-mail/blob/main/docs/update-safety.md
+# An Assert, not a Condition: a missing runtime marks the unit as failed instead of skipping it.
+AssertPathExists=/opt/lumen-mail/bin/lumen-mail
+ConditionPathIsDirectory=/home/keyhelp/www/roundcube
+# No start rate limit: if it were hit, systemd would also fail lumen-mail-sync.path, which then
+# stops watching (systemd.path(5)) and the next Roundcube update would wait for the timer.
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+User=keyhelp
+Group=keyhelp
+ExecStart=/opt/lumen-mail/bin/lumen-mail sync --roundcube /home/keyhelp/www/roundcube
+SuccessExitStatus=75
+# Waiting for a complete tree (up to 300 s) plus one compile (up to 600 s).
+TimeoutStartSec=20min
+StateDirectory=lumen-mail
+StateDirectoryMode=0750
+Environment=PYTHONUNBUFFERED=1
+# Caps the V8 heap of the compile below MemoryMax= (measured peak: docs/update-safety.md).
+Environment=NODE_OPTIONS=--max-old-space-size=256
+
+# Journal: restores, rebuilds and failures only. LogLevelMax= also drops systemd's own info lines
+# about this unit ("Starting", "Finished", "Deactivated"), so the 2-minute no-op leaves no trace.
+SyslogIdentifier=lumen-mail
+LogLevelMax=notice
+
+# Resources: a small, busy host. If memory runs out anyway, the kernel kills this unit first.
+MemoryMax=350M
+MemorySwapMax=0
+OOMScoreAdjust=1000
+Nice=19
+CPUWeight=20
+IOSchedulingClass=idle
+
+# Sandbox. Write access: the Roundcube root (a bind mount over an empty /home) and the state
+# folder. The whole root and not only skins/ is writable because KeyHelp removes skins/ itself
+# during an update (a missing ReadWritePaths= entry would fail the unit at start), and because
+# rename(2) does not cross mount points: the new skins/lumen is staged in <roundcube>/.lumen-mail/,
+# which is on the same bind mount as skins/ and survives KeyHelp's "rm -rf <roundcube>/*".
+ProtectSystem=strict
+ProtectHome=tmpfs
+BindPaths=/home/keyhelp/www/roundcube
+PrivateTmp=yes
+PrivateDevices=yes
+PrivateNetwork=yes
+IPAddressDeny=any
+PrivateIPC=yes
+RemoveIPC=yes
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+# Not ProcSubset=pid: the memory check reads /proc/meminfo.
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX
+LockPersonality=yes
+# Not MemoryDenyWriteExecute=: Node's JIT needs writable and executable memory.
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+KeyringMode=private
+UMask=0022
