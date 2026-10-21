@@ -5,15 +5,16 @@ affected, and how to watch it.
 
 ## What KeyHelp does
 
-KeyHelp's install and update logs show this sequence for every Roundcube update (1.6.11, 1.6.15
-and 1.7.3 so far, each around 02:14 at night, each within about two seconds):
+KeyHelp's install log lists the commands, and its update log the timing: the updates to 1.6.11,
+1.6.15 and 1.7.3 ran between 02:11 and 02:15 at night and took one to five seconds each.
 
 1. `rm -rf /home/keyhelp/www/roundcube/*` removes every file and folder in the Roundcube root,
    `skins/lumen` included. The shell glob does not match names that start with a dot.
-2. `tar --strip 1 -xf roundcube.tar.gz -C /home/keyhelp/www/roundcube` extracts the new release.
-   The official archive stores the owner `1000:1000` for every file.
+2. `tar --strip 1 -xf roundcube.tar.gz -C /home/keyhelp/www/roundcube` extracts the new release
+   (on a first install, a download runs between the `rm` and the `tar`). The official archive
+   stores `alec:alec` (1000:1000) for every file; on this server uid 1000 is `keyhelp`.
 3. "Setup configuration files": `config/config.inc.php` is written again from KeyHelp's settings
-   (Configuration → Webmail: product name, Interface skin, logos, plugins).
+   (Configuration → Webmail: product name, Interface skin, logos, plugins), then `chmod 0600`.
 4. `chown -R keyhelp:keyhelp /home/keyhelp/www/roundcube`.
 
 While Lumen is the system skin, Roundcube cannot render any page between step 1 and the moment
@@ -29,11 +30,27 @@ project; the units below keep the window short.
 | `lumen-mail-sync.service` | runs `lumen-mail sync` once, as `keyhelp`, in a sandbox |
 | `lumen-mail-sync.timer` | runs the service every 2 minutes as a fallback |
 
-The path unit is meant to fire at step 1 already: `PathChanged=` reacts to the deletion of a
-watched file (`IN_DELETE_SELF`, systemd.path(5) and inotify(7)), and `rm` deletes `config/` and
-`program/` before `skins/` (alphabetical order of the glob). The service then starts while the
-update is still running and waits for the extracted tree itself. If the path unit misses an
-update, the timer runs the same service within 2 minutes.
+The path unit fires at step 1: `PathChanged=` reacts to the deletion of a watched file
+(`IN_ATTRIB`, `IN_DELETE_SELF`; systemd.path(5), inotify(7)), and `rm` deletes `config/` and
+`program/` before `skins/` (alphabetical order of the glob). In the simulation below it fired
+14 ms after `rm` began. The service then runs while the update is still going on and waits for
+the extracted tree itself.
+
+How systemd 255 handles the watched paths (`src/core/path.c`), and what follows from it:
+
+- An event on the watched file itself starts the service. Events on its parent folders only
+  renew the watches; while doing so, systemd starts the service if the file has appeared or
+  disappeared since it last looked. So a file whose folder is deleted and created again (as
+  here) is watched again as soon as it exists.
+- While the service runs, nothing is watched, and when it ends, changes made meanwhile do not
+  start it again. sync compares the watched files before and after each pass and runs another
+  pass if they changed. In the simulation, the run ended before KeyHelp wrote the new
+  `config.inc.php`; that file appearing started a second, cheap run.
+- The service cannot start itself in a loop: its own swaps of `skins/lumen` happen while nothing
+  is watched. A manual `install` or `rollback` while the path unit watches starts at most one
+  run, which finds everything current and writes nothing.
+
+If the path unit misses an update, the timer runs the same service within 2 minutes.
 
 ## What one run does
 
@@ -42,7 +59,7 @@ update, the timer runs the same service within 2 minutes.
 2. **Fast restore.** If `skins/lumen` is missing or does not match its stamp (every file's sha256),
    copy the last good build from `/var/lib/lumen-mail/last-good` to
    `<roundcube>/.lumen-mail/run-*/lumen` and rename it into `skins/`. No Node, no compile, no
-   network. In the simulated updates below it took 0.004 to 0.009 s; every restore logs its time
+   network. In the simulated updates below it took 0.003 to 0.009 s; every restore logs its time
    (`restored skins/lumen from the last good build in 0.004 s`). If `skins/` is not writable yet
    (step 4 not done and the archive had another owner), it retries every 200 ms.
 3. **Freshness.** Compare the stamp of `skins/lumen` with the installed Roundcube version, a
@@ -64,25 +81,40 @@ with a stale cache-buster until the rebuild a few seconds later replaces it.
 
 ## Expected error window
 
-Measured on a scratch copy of this server's Roundcube 1.7.3 (2026-10-21): a script ran KeyHelp's
-steps (`rm -rf`, `tar --strip 1 -xzf` of a 6.5 MB release archive, a new `config.inc.php`,
-`chown -R`) and started `sync` together with the `rm`, as the path unit does, while a poller
-fetched the login page every 50 ms.
+Measured on scratch copies of this server's Roundcube 1.7.3 (2026-10-21). A script ran KeyHelp's
+steps (`rm -rf <root>/*`, `tar --strip 1 -xzf` of a 6.5 MB archive of the same tree, a new
+`config.inc.php` written in place, `chmod 600`, `chown -R`). The path unit was simulated with a
+port of systemd 255's `PathChanged=` logic (the inotify watches of `path_spec_watch()`, the trigger
+rules of `path_spec_fd_event()` and `path_spec_check_good()`, no watching while the service runs)
+that started `lumen-mail sync` from an `install-runtime` copy, inside a 300 MB memory scope. A
+poller fetched the login page every 50 ms. Times are from the start of `rm`:
 
 | Step | Same release | New release (rebuild) |
 |---|---|---|
-| `rm -rf <roundcube>/*` | 0.22 s | 0.09 s |
-| extraction | 0.30 s | 0.28 s |
-| `skins/lumen` restored | during the extraction, in 0.009 s | during the extraction, in 0.004 s |
-| new `config.inc.php` written | 0.25 s after the extraction | 0.33 s after the extraction |
-| login page | error (500/404) during `rm` and extraction, plain Elastic until the config existed, then Lumen | the same; the rebuild followed 3 s after KeyHelp's last step (stand-in compiler) |
+| path unit fires (deletion of `config/config.inc.php`) | +0.014 s | +0.014 s |
+| `rm -rf` done | +0.10 s | +0.10 s |
+| `skins/lumen` restored from the last good build | during the extraction: the run had ended at +0.33 s (copy 0.003 s) | before +0.45 s (copy 0.004 s; the run went on to rebuild, so only its end is timed) |
+| extraction done | +0.42 s | +0.38 s |
+| new `config.inc.php` written | +0.47 s | +0.43 s |
+| login page served with Lumen | +0.48 s (10 ms after the config) | +0.45 s (22 ms after the config), by the restored build |
+| rebuild for the new release | none needed | swapped in at +7.3 s (5 s settle, 1.7 s build); the poller saw no interruption |
 
-`skins/lumen` was back before KeyHelp had written the new configuration, so Lumen added no error
-time of its own: the error pages came from the update itself (Roundcube without its files, then
-without its configuration). The rebuild that follows replaces a working build with a current one
-and causes no error window (`skins/lumen` is exchanged atomically, never removed).
+During the update the login page answered 500 and 404 (Roundcube without its files), then
+Roundcube's own "Internal Error" page (no `config.inc.php` yet). `skins/lumen` was always back
+before the page was served with the new configuration, and Roundcube's error log had no "Error
+loading template" line, so Lumen added no error time of its own. The rebuild replaces a working
+build with a current one through one atomic exchange.
 
-If the service is not running (units not enabled, runtime missing), the window lasts until
+Two more cases from the same tests:
+
+- **Too little memory for the rebuild.** In one run `MemAvailable` fell to 381 MB during the
+  update. sync restored the skin, deferred the rebuild (exit 75, logged once at notice) and the
+  restored build kept serving every page and asset; a later run rebuilt it.
+- **A missed trigger.** When nothing watched during the update (the path unit started too late),
+  the login page stayed on Roundcube's 404 "Error loading template" page. The next sync (what the
+  timer runs every 2 minutes) restored the skin in 0.007 s and rebuilt it in 1.7 s.
+
+If the units are not running at all (not enabled, runtime missing), the error lasts until
 someone runs `lumen-mail sync` or switches the Interface skin back to Elastic.
 
 ## Why these choices
@@ -91,13 +123,15 @@ someone runs `lumen-mail sync` or switches the Interface skin back to Elastic.
   `skins/` and the Roundcube root (where it stages), systemd creates `/var/lib/lumen-mail` for it
   (`StateDirectory=`), and Node and the runtime in `/opt/lumen-mail` are world-readable. Files it
   writes are owned by `keyhelp` like the rest of Roundcube; KeyHelp's own `chown -R` changes
-  nothing.
+  nothing. Tested on a scratch copy: as `keyhelp` (empty environment, no home folder), sync
+  restored the skin in 0.003 s and rebuilt it in 1.4 s, every file it wrote belongs to
+  `keyhelp`, `status` read the mode-600 `config.inc.php`, and `uninstall` refused with exit 5.
 - **The whole Roundcube root is writable in the sandbox**, not only `skins/`: KeyHelp removes
   `skins/` itself, and a missing `ReadWritePaths=`/`BindPaths=` source would fail the unit at
   start. Each writable path is a separate mount inside the sandbox, and `rename(2)` does not
   cross mounts (`EXDEV`), so staging must be on the same mount as `skins/`:
-  `<roundcube>/.lumen-mail/` is. It also survives `rm -rf <roundcube>/*`, and Roundcube's skin
-  list ignores names that start with a dot.
+  `<roundcube>/.lumen-mail/` is. It also survives `rm -rf <roundcube>/*` (the glob skips dot
+  names), and it is outside `skins/`, so Roundcube's skin chooser never lists it.
 - **No start rate limit** on the service: if systemd's start limit were hit, it would fail the
   path unit too, which then stops watching until someone restarts it.
 - **`OOMScoreAdjust=1000`, `MemoryMax=300M` and the 400 MB check**: the server is small and

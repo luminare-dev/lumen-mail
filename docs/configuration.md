@@ -23,7 +23,8 @@ entry still takes precedence.
 ## Secrets
 
 Secrets never go into this repository, an issue or a log. The generator never reads Roundcube's
-`config.inc.php` for `build`, `verify`, `install` or `sync`. `uninstall` and `status` read only the
-`skin` setting from it (a small PHP tokenizer, no PHP is run) and print nothing else from the
-file. CI scans every commit with gitleaks; a leaked secret is rotated first and removed from
+`config.inc.php` for `build`, `verify` or `install`. `uninstall` and `status` read only the `skin`
+setting from it (a small PHP tokenizer, no PHP is run) and print nothing else from the file;
+`check` and `sync` do the same, and only when there is neither a `skins/lumen` nor a last good
+build (to decide whether a new build is urgent). CI scans every commit with gitleaks; a leaked secret is rotated first and removed from
 history second.

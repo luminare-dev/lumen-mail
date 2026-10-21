@@ -1,10 +1,13 @@
 # lumen-mail-sync.path: start lumen-mail-sync.service the moment a Roundcube update begins.
 #
 # KeyHelp updates Roundcube with "rm -rf /home/keyhelp/www/roundcube/*", extracts the new release,
-# rewrites config/config.inc.php and runs chown -R, all within about two seconds. PathChanged=
-# fires when a watched file is deleted (IN_DELETE_SELF), closed after writing, changes attributes,
-# or appears or disappears inside a watched parent folder. systemd keeps a watch on every parent
-# folder, so the files are watched again when their folders come back (systemd.path(5)).
+# rewrites config/config.inc.php and runs chown -R, all within one to five seconds. PathChanged=
+# starts the service on an event of the watched file itself: deleted (IN_ATTRIB, IN_DELETE_SELF),
+# closed after writing, attributes changed. Events in its parent folders renew the watches, and if
+# the file appeared or disappeared meanwhile, that starts the service too; so a file whose folder
+# is deleted and extracted again is watched again as soon as it exists (systemd.path(5); the
+# watch logic is in systemd's src/core/path.c). In a simulated update this fired 14 ms after rm
+# began (docs/update-safety.md).
 #
 #   config/config.inc.php     deleted early by the rm (config/ sorts before program/ and skins/),
 #                             written again by KeyHelp at the end of the update, and on every save

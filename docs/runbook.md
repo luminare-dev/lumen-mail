@@ -33,6 +33,16 @@ Commands below use the KeyHelp paths; `R=/home/keyhelp/www/roundcube` and
 | **Mitigation** | Wait; KeyHelp updates run at night, when memory is usually free. |
 | **Fix** | If it never clears, lower `--min-available-mb` in a drop-in (not below the service's `MemoryMax=`) or free memory. |
 
+## Warning: `the system skin is lumen, but there is no skins/lumen and no last good build`
+
+| | |
+|---|---|
+| **Meaning** | The state folder (`/var/lib/lumen-mail`) lost its last good build, and `skins/lumen` is gone too (usually after a Roundcube update). sync reads the `skin` setting from `config.inc.php` (only that setting) and, because it is `lumen`, builds a new skin instead of waiting for `install`. |
+| **Impact** | Webmail shows error pages until the build is in place (a few seconds), or longer if the build is deferred for memory or fails. |
+| **Diagnosis** | `journalctl -u lumen-mail-sync.service -p notice -n 20`; `$LM status --roundcube $R`; `ls -la /var/lib/lumen-mail`. |
+| **Mitigation** | If the build is deferred or fails: set KeyHelp's Interface skin to Elastic until it succeeds. |
+| **Fix** | Find out what removed the state folder; `$LM install --roundcube $R` writes a new last good build. |
+
 ## Warning: `the Roundcube tree ... is still incomplete after 300 s`
 
 | | |
