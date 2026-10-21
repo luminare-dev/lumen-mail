@@ -104,14 +104,23 @@ def add_builder(p: argparse.ArgumentParser) -> None:
     p.add_argument("--work-dir", help="where the build's temporary mirror tree goes (default: $TMPDIR)")
 
 
+SOURCES_HINT = ["run the installed runtime (/opt/lumen-mail/bin/lumen-mail, see install-runtime), whose files every "
+                "user can read, or pass --source with such a folder"]
+
+
 def sources_from(args: argparse.Namespace) -> Sources:
     try:
-        return Sources.locate(getattr(args, "source", None), getattr(args, "node_modules", None),
-                              getattr(args, "palette", None))
+        sources = Sources.locate(getattr(args, "source", None), getattr(args, "node_modules", None),
+                                 getattr(args, "palette", None))
     except PermissionError as exc:
         raise LumenError(f"cannot read the lumen-mail sources as {privileges.user_name(os.geteuid())}: {exc}",
-                         ["run the installed runtime (/opt/lumen-mail/bin/lumen-mail, see install-runtime), whose "
-                          "files every user can read, or pass --source with such a folder"]) from exc
+                         SOURCES_HINT) from exc
+    # After a drop from root the sources may be out of reach (a checkout in /root): say so at once.
+    version = sources.root / "version.txt"
+    if not os.access(version, os.R_OK) and (not os.access(sources.root, os.X_OK) or os.path.lexists(version)):
+        raise LumenError(f"cannot read the lumen-mail sources in {sources.root} as "
+                         f"{privileges.user_name(os.geteuid())}", SOURCES_HINT)
+    return sources
 
 
 # Commands that continue as the Roundcube owner when started as root, and those among them that

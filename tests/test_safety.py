@@ -211,6 +211,26 @@ class PrivilegesTest(LifecycleCase):
                 cli.sources_from(args)
         self.assertIn("install-runtime", " ".join(ctx.exception.details))
 
+    @ROOT_ONLY
+    def test_sources_out_of_reach_after_the_drop_are_named(self):
+        src = self.tmp / "private" / "src"
+        shutil.copytree(ROOT, src, ignore=shutil.ignore_patterns("node_modules", ".git", "gallery", "dist"))
+        os.chmod(self.tmp / "private", 0o700)
+        args = argparse.Namespace(source=str(src), node_modules=None, palette=None)
+        pid = os.fork()
+        if pid == 0:                                   # the drop happens in a child only
+            code = 0
+            try:
+                privileges.drop_to(OTHER)
+                cli.sources_from(args)
+            except LumenError as exc:
+                code = 7 if "cannot read the lumen-mail sources" in str(exc) else 8
+            except BaseException:
+                code = 9
+            os._exit(code)
+        _pid, status = os.waitpid(pid, 0)
+        self.assertEqual(os.waitstatus_to_exitcode(status), 7)
+
 
 class RestoreSourcesTest(LifecycleCase):
     def damage_last_good(self) -> None:
