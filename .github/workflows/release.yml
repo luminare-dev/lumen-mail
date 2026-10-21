@@ -18,6 +18,10 @@ jobs:
   release:
     if: ${{ !github.event.repository.is_template }}
     uses: ./.github/workflows/reusable-release.yml
+    with:
+      # lumen-<version>-roundcube-1.7.3.tar.gz and .zip, built against the pinned official release
+      node-version: "22"
+      package-command: python3 -I scripts/package.py release --out dist
     permissions:
       contents: write        # release commit, tag, draft release, attached files
       pull-requests: write   # the release pull request
