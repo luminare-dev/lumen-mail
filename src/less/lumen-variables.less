@@ -1,0 +1,226 @@
+// Lumen overrides of Elastic's LESS variables (MIT, https://github.com/luminare-dev/lumen-mail).
+//
+// This file is imported AFTER Elastic's styles.less (or embed.less). LESS variables are lazy:
+// the last definition wins everywhere, including inside Elastic's own rules and colour
+// functions, so most of the restyle happens here instead of in selector overrides.
+//
+// Only variable names are taken from Elastic; every value is ours. The build checks that each
+// Elastic variable set here still exists in the installed Elastic sources and fails with the
+// name of any that is gone (an Elastic update renamed it), so an override can never go silent.
+// See docs/elastic-inventory.md for what each group changes and why.
+
+// ---------------------------------------------------------------------------------------------
+// Base palette
+// ---------------------------------------------------------------------------------------------
+@color-main:                    @lm-royal;
+@color-main-dark:               @lm-abyss;
+@color-black:                   @lm-night;
+@color-font:                    @lm-light-text;
+@color-link:                    @lm-light-link;
+@color-link-hover:              @lm-light-link-hover;
+@color-border:                  @lm-light-border;
+@color-error:                   @lm-light-danger;
+@color-success:                 @lm-light-success;
+@color-warning:                 @lm-light-warning;
+@color-black-shade-text:        @lm-light-text-muted;
+@color-black-shade-border:      @lm-light-border;
+@color-black-shade-bg:          @lm-light-border-subtle;
+
+// ---------------------------------------------------------------------------------------------
+// Layout: Mist sidebar, white list and content, white headers with a hairline
+// ---------------------------------------------------------------------------------------------
+@color-layout-border:                   @lm-light-border;
+@color-layout-header:                   @lm-light-text-strong;
+@color-layout-sidebar-background:       @lm-light-surface-sunken;
+@color-layout-list-background:          @lm-light-surface;
+@color-layout-content-background:       @lm-light-surface;
+@color-layout-header-background:        @lm-light-surface;
+@color-layout-footer-background:        @lm-light-surface;
+@color-layout-mobile-header-background: @lm-light-surface;
+@color-layout-mobile-footer-background: @lm-light-surface;
+
+// Wider task menu: Sora is wider than Roboto, and the German labels ("Einstellungen",
+// "Dunkler Modus") are truncated at 78px (measured with the font's advance widths).
+@layout-menu-width:             @lm-rail-width;
+
+// ---------------------------------------------------------------------------------------------
+// Task menu: the Night rail, the same in light and dark mode
+// ---------------------------------------------------------------------------------------------
+@color-taskmenu-background:                     @lm-light-rail;
+@color-taskmenu-button:                         @lm-light-rail-text;
+@color-taskmenu-button-selected:                @lm-light-rail-text-active;
+@color-taskmenu-button-action:                  @lm-light-rail-accent;
+@color-taskmenu-button-selected-background:     @lm-light-rail-active;
+@color-taskmenu-button-hover:                   @lm-light-rail-text-active;
+@color-taskmenu-button-selected-hover:          @lm-light-rail-text-active;
+@color-taskmenu-button-action-hover:            @lm-light-rail-accent;
+@color-taskmenu-button-background-hover:        @lm-light-rail-hover;
+@color-taskmenu-button-action-background-hover: @lm-light-rail-hover;
+@color-taskmenu-button-logout:                  @lm-light-rail-danger;
+@color-taskmenu-button-logout-hover:            @lm-light-rail-danger;
+
+// ---------------------------------------------------------------------------------------------
+// Toolbars, search bar, popup menus
+// ---------------------------------------------------------------------------------------------
+@color-toolbar-button:                  @lm-light-text-2;
+@color-toolbar-button-background-hover: @lm-light-surface-hover;
+@color-searchbar-background:            @lm-light-surface;
+@color-menu-hover:                      @lm-light-on-primary-tint;
+@color-menu-hover-background:           @lm-light-primary-tint;
+
+// ---------------------------------------------------------------------------------------------
+// Lists: folder list, message list, contacts, settings sections
+// ---------------------------------------------------------------------------------------------
+@color-list:                            @lm-light-text;
+@color-list-selected:                   @lm-light-text;
+@color-list-selected-background:        @lm-light-primary-tint;
+@color-list-flagged:                    @lm-light-danger;
+@color-list-secondary:                  @lm-light-text-muted;
+@color-list-droptarget-background:      @lm-light-highlight;
+@color-list-focus-indicator:            @lm-light-focus;
+@color-list-border:                     @lm-light-border-subtle;
+@color-list-badge:                      @lm-light-on-primary;
+@color-list-badge-background:           @lm-light-primary;
+@color-list-recent:                     @lm-light-link;
+@color-list-recent-badge:               @lm-light-on-primary;
+@color-list-recent-badge-background:    @lm-light-primary;
+@color-list-pagenav:                    @lm-light-text-muted;
+@color-list-unread-status:              @lm-light-primary;
+@color-attachmentlist-border:           @lm-light-border;
+@color-attachmentlist-background:       @lm-light-surface-sunken;
+
+// ---------------------------------------------------------------------------------------------
+// Messages: toasts (#messagestack) and inline alert boxes
+// ---------------------------------------------------------------------------------------------
+@color-message:                         @lm-light-toast;
+@color-message-text:                    @lm-light-on-toast;
+@color-message-link:                    @lm-light-link;
+@color-message-information:             @lm-light-toast-info;
+@color-message-success:                 @lm-light-toast-success;
+@color-message-warning:                 @lm-light-toast-warning;
+@color-message-error:                   @lm-light-toast-danger;
+@color-message-loading:                 @lm-light-secondary;
+@color-message-information-text:        @lm-light-on-toast-status;
+@color-message-success-text:            @lm-light-on-toast-status;
+@color-message-warning-text:            @lm-light-on-toast-status;
+@color-message-error-text:              @lm-light-on-toast-status;
+@color-message-loading-text:            @lm-light-on-secondary;
+@color-message-error-box:               @lm-light-danger-text;
+@color-message-information-box:         @lm-light-info-text;
+@color-message-success-box:             @lm-light-success-text;
+@color-message-warning-box:             @lm-light-warning-text;
+@color-message-error-box-background:        @lm-light-danger-tint;
+@color-message-information-box-background:  @lm-light-info-tint;
+@color-message-success-box-background:      @lm-light-success-tint;
+@color-message-warning-box-background:      @lm-light-warning-tint;
+
+// ---------------------------------------------------------------------------------------------
+// Popovers and dialogs
+// ---------------------------------------------------------------------------------------------
+@color-popover-shadow:                      @lm-light-border;
+@color-popover-separator:                   @lm-light-text-muted;
+@color-popover-separator-background:        @lm-light-surface-sunken;
+@color-popover-mobile-header:               @lm-white;
+@color-popover-mobile-header-background:    @lm-night;
+@color-popover-mobile-dropbutton-background: @lm-light-surface-sunken;
+@color-dialog-overlay-background:           fade(@lm-night, 55%);
+@color-dialog-header:                       @lm-light-text-strong;
+@color-dialog-header-border:                @lm-light-border;
+@color-spinner-circle:                      @lm-light-border;
+@color-spinner-item:                        @lm-light-primary;
+
+// ---------------------------------------------------------------------------------------------
+// Forms and buttons
+// ---------------------------------------------------------------------------------------------
+@color-input:                       @lm-light-text;
+@color-input-border:                @lm-light-border-control;
+@color-input-border-focus:          @lm-light-focus;
+@color-input-border-focus-shadow:   fade(@lm-light-focus, 25%);
+@color-input-border-invalid:        @lm-light-danger;
+@color-input-border-invalid-shadow: fade(@lm-light-danger, 25%);
+@color-input-addon-background:      @lm-light-surface-sunken;
+@color-recipient-input-background:  @lm-light-primary-tint;
+@color-input-placeholder:           @lm-light-text-muted;
+@color-checkbox:                    @lm-light-primary;
+@color-checkbox-checked:            @lm-light-primary;
+@color-form-hint:                   @lm-light-text-muted;
+@color-image-upload-background:     @lm-light-surface-sunken;
+@color-btn-secondary:               @lm-light-on-secondary;
+@color-btn-secondary-background:    @lm-light-secondary;
+@color-btn-primary:                 @lm-light-on-primary;
+@color-btn-primary-background:      @lm-light-primary;
+@color-btn-danger:                  @lm-light-on-danger;
+@color-btn-danger-background:       @lm-light-danger;
+@color-quota-background:            @lm-light-surface;
+@color-quota-text:                  @lm-light-text-muted;
+@color-quota-value:                 @lm-light-primary;
+@color-quota-value-warning:         @lm-light-danger;
+
+// ---------------------------------------------------------------------------------------------
+// Mail content: quotes, message parts, date picker, scrollbars
+// ---------------------------------------------------------------------------------------------
+@color-blockquote-0:                    @lm-light-info-text;
+@color-blockquote-1:                    @lm-light-success-text;
+@color-blockquote-2:                    @lm-light-danger-text;
+@color-messagepart-border:              @lm-light-border-subtle;
+@color-messagepart-background:          @lm-light-surface-sunken;
+@color-datepicker-highlight:            @lm-light-on-primary-tint;
+@color-datepicker-highlight-background: @lm-light-primary-tint;
+@color-datepicker-active:               @lm-light-on-primary;
+@color-datepicker-active-background:    @lm-light-primary;
+@color-scrollbar-thumb:                 @lm-light-scrollbar;
+@color-scrollbar-track:                 @lm-light-bg;
+
+// ---------------------------------------------------------------------------------------------
+// Dark mode (Elastic's @color-dark-* family, applied under html.dark-mode)
+// ---------------------------------------------------------------------------------------------
+@color-dark-main:                       @lm-dark-primary;
+@color-dark-background:                 @lm-dark-bg;
+@color-dark-font:                       @lm-dark-text;
+@color-dark-border:                     @lm-dark-border;
+@color-dark-hint:                       @lm-dark-text-muted;
+@color-dark-information:                @lm-dark-toast-info;
+@color-dark-success:                    @lm-dark-toast-success;
+@color-dark-warning:                    @lm-dark-toast-warning;
+@color-dark-error:                      @lm-dark-toast-danger;
+@color-dark-list-selected:              @lm-dark-text;
+@color-dark-list-selected-background:   @lm-dark-primary-tint;
+@color-dark-list-badge:                 @lm-dark-on-primary;
+@color-dark-list-badge-background:      @lm-dark-primary;
+@color-dark-list-droptarget-background: @lm-dark-highlight;
+@color-dark-list-border:                @lm-dark-border-subtle;
+@color-dark-input:                      @lm-dark-text;
+@color-dark-input-border:               @lm-dark-border-control;
+@color-dark-input-background:           @lm-dark-bg;
+@color-dark-input-focus:                @lm-dark-text-strong;
+@color-dark-input-border-focus:         @lm-dark-focus;
+@color-dark-input-background-focus:     @lm-dark-surface;
+@color-dark-input-addon-background:     @lm-dark-surface-raised;
+@color-dark-input-addon-background-focus: @lm-dark-surface-hover;
+@color-dark-checkbox:                   @lm-dark-border-control;
+@color-dark-checkbox-checked:           @lm-dark-primary;
+// Secondary and danger buttons keep light text; the primary button (Lumen) gets Night text in
+// lumen.less, because Elastic uses one text colour (@color-dark-btn) for all three.
+@color-dark-btn:                        @lm-dark-on-secondary;
+@color-dark-btn-primary-background:     @lm-dark-primary;
+@color-dark-btn-secondary-background:   @lm-dark-secondary;
+@color-dark-btn-danger-background:      @lm-dark-toast-danger;
+@color-dark-dialog-overlay-background:  fade(@lm-night, 72%);
+@color-dark-popover-background:         @lm-dark-surface-raised;
+@color-dark-popover-border:             @lm-dark-border;
+@color-dark-message-loading:            @lm-dark-toast;
+@color-dark-scrollbar-thumb:            @lm-dark-scrollbar;
+@color-dark-scrollbar-track:            @lm-dark-surface-sunken;
+@color-dark-blockquote-0:               @lm-dark-info-text;
+@color-dark-blockquote-1:               @lm-dark-success-text;
+@color-dark-blockquote-2:               @lm-dark-danger-text;
+
+// ---------------------------------------------------------------------------------------------
+// Typography: Elastic calls this mixin for body, form controls, popovers and the editor. LESS
+// applies every matching mixin, so this definition adds a second font-family after Elastic's
+// Roboto one; the later declaration wins and the minifier drops the first. Roboto is then
+// referenced by no rule, so browsers never download it.
+// ---------------------------------------------------------------------------------------------
+.font-family() {
+    font-family: @lm-font;
+}

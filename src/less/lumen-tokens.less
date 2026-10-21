@@ -1,0 +1,203 @@
+// Lumen design tokens (MIT, https://github.com/luminare-dev/lumen-mail).
+//
+// Brand values come from the Luminare brand kit (palette/tokens.json). A derived value is always
+// a mix of two brand colours, written as "mix(a NN%, b)" in its comment; scripts/contrast.py
+// recomputes every mix, checks the hex and the WCAG 2.2 contrast of every text/background and
+// UI/background pair listed in src/less/contrast-pairs.json (docs/contrast.md).
+//
+// The values are plain LESS colours on purpose: Elastic runs its variables through colour
+// functions (darken, fade, tint ...), which cannot take CSS custom properties. The component
+// layer (lumen.less) reads the same tokens as --lm-* custom properties, switched by
+// html.dark-mode, which is the class Elastic's ui.js sets for dark mode.
+//
+// Naming: @lm-<brand> for brand colours, @lm-light-<role> and @lm-dark-<role> for the two modes.
+// Every role in @lm-roles must exist in both modes (the contrast script checks this).
+
+// Brand colours (palette/tokens.json)
+@lm-lumen:          #5BDFFF;
+@lm-sky:            #2B8FF0;
+@lm-azure:          #2D63DE;
+@lm-royal:          #1F47C4;
+@lm-abyss:          #15308A;
+@lm-night:          #0A1224;
+@lm-slate-700:      #39445C;
+@lm-slate-500:      #5E6B84;
+@lm-slate-300:      #B7C1D3;
+@lm-slate-100:      #E3E8F1;
+@lm-mist:           #F3F6FB;
+@lm-white:          #FFFFFF;
+@lm-mint:           #06F2C4;
+@lm-verdant:        #028844;
+@lm-verdant-bright: #58DD70;
+@lm-amber:          #B15204;
+@lm-amber-bright:   #FFB334;
+@lm-ember:          #B71920;
+@lm-ember-bright:   #FF5147;
+
+// Type, space (8px grid), shape, motion
+@lm-font:           "Sora", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+@lm-font-mono:      ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+@lm-space-1:        4px;
+@lm-space-2:        8px;
+@lm-space-3:        12px;
+@lm-space-4:        16px;
+@lm-space-5:        24px;
+@lm-space-6:        32px;
+@lm-space-7:        48px;
+@lm-radius-s:       6px;
+@lm-radius-m:       10px;
+@lm-radius-l:       12px;
+@lm-radius-xl:      14px;
+@lm-radius-pill:    999px;
+@lm-ring:           2px;
+@lm-duration:       160ms;
+@lm-ease:           cubic-bezier(0.2, 0, 0, 1);
+@lm-rail-width:     96px;   // Elastic: 78px; Sora is wider than Roboto (docs/elastic-inventory.md)
+@lm-rail-label:     12px;
+
+// Light mode
+@lm-light-bg:                 @lm-mist;
+@lm-light-surface:            @lm-white;
+@lm-light-surface-raised:     @lm-white;
+@lm-light-surface-sunken:     @lm-mist;
+@lm-light-surface-hover:      #F2F4FB; // mix(royal 6%, white)
+@lm-light-border:             @lm-slate-100;
+@lm-light-border-subtle:      #EBEFF6; // mix(slate-100 50%, mist)
+@lm-light-border-control:     #79859C; // mix(slate-500 70%, slate-300)
+@lm-light-text:               @lm-night;
+@lm-light-text-strong:        @lm-night;
+@lm-light-text-2:             @lm-slate-700;
+@lm-light-text-muted:         @lm-slate-500;
+@lm-light-link:               @lm-royal;
+@lm-light-link-hover:         @lm-abyss;
+@lm-light-primary:            @lm-royal;
+@lm-light-primary-hover:      @lm-azure;
+@lm-light-primary-active:     @lm-abyss;
+@lm-light-on-primary:         @lm-white;
+@lm-light-primary-tint:       #E9EDF9; // mix(royal 10%, white)
+@lm-light-on-primary-tint:    @lm-royal;
+@lm-light-secondary:          @lm-slate-700;
+@lm-light-on-secondary:       @lm-white;
+@lm-light-focus:              @lm-royal;
+@lm-light-success:            @lm-verdant;
+@lm-light-on-success:         @lm-white;
+@lm-light-success-tint:       #E6F3EC; // mix(verdant 10%, white)
+@lm-light-success-text:       #046A3C; // mix(verdant 75%, night)
+@lm-light-warning:            @lm-amber;
+@lm-light-on-warning:         @lm-white;
+@lm-light-warning-tint:       #F7EEE6; // mix(amber 10%, white)
+@lm-light-warning-text:       #87420C; // mix(amber 75%, night)
+@lm-light-danger:             @lm-ember;
+@lm-light-on-danger:          @lm-white;
+@lm-light-danger-tint:        #F8E8E9; // mix(ember 10%, white)
+@lm-light-danger-text:        #8C1721; // mix(ember 75%, night)
+@lm-light-info:               @lm-royal;
+@lm-light-on-info:            @lm-white;
+@lm-light-info-tint:          #E9EDF9; // mix(royal 10%, white)
+@lm-light-info-text:          #1A3A9C; // mix(royal 75%, night)
+@lm-light-highlight:          #DEF9FF; // mix(lumen 20%, white)
+@lm-light-scrollbar:          @lm-light-border-control;
+@lm-light-rail:               @lm-night;
+@lm-light-rail-text:          @lm-slate-300;
+@lm-light-rail-text-active:   @lm-white;
+@lm-light-rail-hover:         #1D263A; // mix(slate-700 40%, night)
+@lm-light-rail-active:        #0F1F4C; // mix(royal 25%, night)
+@lm-light-rail-accent:        @lm-lumen;
+@lm-light-rail-danger:        @lm-ember-bright;
+@lm-light-rail-focus:         @lm-mint;
+@lm-light-toast:              @lm-night;
+@lm-light-on-toast:           @lm-white;
+@lm-light-toast-info:         @lm-royal;
+@lm-light-toast-success:      @lm-verdant;
+@lm-light-toast-warning:      @lm-amber;
+@lm-light-toast-danger:       @lm-ember;
+@lm-light-on-toast-status:    @lm-white;
+
+// Dark mode (Elastic's html.dark-mode)
+@lm-dark-bg:                  @lm-night;
+@lm-dark-surface:             #10182B; // mix(night 88%, slate-700)
+@lm-dark-surface-raised:      #131C2F; // mix(night 80%, slate-700)
+@lm-dark-surface-sunken:      #0D1527; // mix(night 94%, slate-700)
+@lm-dark-surface-hover:       #102236; // mix(lumen 8%, night)
+@lm-dark-border:              #303A4F; // mix(slate-500 45%, night)
+@lm-dark-border-subtle:       #1B2437; // mix(slate-500 20%, night)
+@lm-dark-border-control:      @lm-slate-500;
+@lm-dark-text:                @lm-mist;
+@lm-dark-text-strong:         @lm-white;
+@lm-dark-text-2:              @lm-slate-300;
+@lm-dark-text-muted:          #9CA7BB; // mix(slate-300 70%, slate-500)
+@lm-dark-link:                @lm-lumen;
+@lm-dark-link-hover:          #7CE5FF; // mix(lumen 80%, white)
+@lm-dark-primary:             @lm-lumen;
+@lm-dark-primary-hover:       #7CE5FF; // mix(lumen 80%, white)
+@lm-dark-primary-active:      @lm-sky;
+@lm-dark-on-primary:          @lm-night;
+@lm-dark-primary-tint:        #142B3E; // mix(lumen 12%, night)
+@lm-dark-on-primary-tint:     @lm-lumen;
+@lm-dark-secondary:           @lm-slate-700;
+@lm-dark-on-secondary:        @lm-mist;
+@lm-dark-focus:               @lm-mint;
+@lm-dark-success:             @lm-verdant-bright;
+@lm-dark-on-success:          @lm-night;
+@lm-dark-success-tint:        #132A2D; // mix(verdant-bright 12%, night)
+@lm-dark-success-text:        @lm-verdant-bright;
+@lm-dark-warning:             @lm-amber-bright;
+@lm-dark-on-warning:          @lm-night;
+@lm-dark-warning-tint:        #272526; // mix(amber-bright 12%, night)
+@lm-dark-warning-text:        @lm-amber-bright;
+@lm-dark-danger:              @lm-ember-bright;
+@lm-dark-on-danger:           @lm-night;
+@lm-dark-danger-tint:         #271A28; // mix(ember-bright 12%, night)
+@lm-dark-danger-text:         @lm-ember-bright;
+@lm-dark-info:                @lm-lumen;
+@lm-dark-on-info:             @lm-night;
+@lm-dark-info-tint:           #142B3E; // mix(lumen 12%, night)
+@lm-dark-info-text:           @lm-lumen;
+@lm-dark-highlight:           #173347; // mix(lumen 16%, night)
+@lm-dark-scrollbar:           @lm-slate-500;
+@lm-dark-rail:                @lm-night;
+@lm-dark-rail-text:           @lm-slate-300;
+@lm-dark-rail-text-active:    @lm-white;
+@lm-dark-rail-hover:          #1D263A; // mix(slate-700 40%, night)
+@lm-dark-rail-active:         #0F1F4C; // mix(royal 25%, night)
+@lm-dark-rail-accent:         @lm-lumen;
+@lm-dark-rail-danger:         @lm-ember-bright;
+@lm-dark-rail-focus:          @lm-mint;
+@lm-dark-toast:               @lm-slate-700;
+@lm-dark-on-toast:            @lm-mist;
+@lm-dark-toast-info:          #1A3A9C; // mix(royal 75%, night)
+@lm-dark-toast-success:       #046A3C; // mix(verdant 75%, night)
+@lm-dark-toast-warning:       #87420C; // mix(amber 75%, night)
+@lm-dark-toast-danger:        #8C1721; // mix(ember 75%, night)
+@lm-dark-on-toast-status:     @lm-mist;
+
+// Roles that become --lm-<role> custom properties in both modes.
+@lm-roles: bg, surface, surface-raised, surface-sunken, surface-hover, border, border-subtle,
+    border-control, text, text-strong, text-2, text-muted, link, link-hover, primary, primary-hover,
+    primary-active, on-primary, primary-tint, on-primary-tint, secondary, on-secondary, focus,
+    success, on-success, success-tint, success-text, warning, on-warning, warning-tint, warning-text,
+    danger, on-danger, danger-tint, danger-text, info, on-info, info-tint, info-text, highlight,
+    scrollbar, rail, rail-text, rail-text-active, rail-hover, rail-active, rail-accent, rail-danger,
+    rail-focus, toast, on-toast, toast-info, toast-success, toast-warning, toast-danger,
+    on-toast-status;
+
+// Writes --lm-<role> for one mode ("light" or "dark").
+.lm-mode-properties(@mode) {
+    each(@lm-roles, {
+        @name: ~"lm-@{mode}-@{value}";
+        --lm-@{value}: @@name;
+    });
+}
+
+// Mode-independent custom properties.
+.lm-base-properties() {
+    --lm-font: @lm-font;
+    --lm-font-mono: @lm-font-mono;
+    --lm-radius-s: @lm-radius-s;
+    --lm-radius-m: @lm-radius-m;
+    --lm-radius-l: @lm-radius-l;
+    --lm-radius-xl: @lm-radius-xl;
+    --lm-ring: @lm-ring;
+    --lm-duration: @lm-duration;
+    --lm-ease: @lm-ease;
+}

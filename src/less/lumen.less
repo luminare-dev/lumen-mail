@@ -1,0 +1,585 @@
+// Lumen component layer (MIT, https://github.com/luminare-dev/lumen-mail).
+//
+// Imported after Elastic's styles.less and lumen-variables.less, so equal-specificity rules here
+// win. Most colours already come from the variable overrides; this layer adds what variables
+// cannot express: Sora, the Night task rail with an active indicator, calmer lists, rounded
+// surfaces, visible keyboard focus, the branded login page, dark-mode fixes for places where
+// Elastic uses a light-mode colour inside html.dark-mode, and reduced motion.
+//
+// Rules use the --lm-* custom properties (light by default, dark under html.dark-mode) and
+// logical properties (margin-inline, inset-inline-start ...), so they also hold under dir=rtl.
+// Selector names are Elastic's (see docs/elastic-inventory.md); no Elastic rule is copied.
+
+// ---------------------------------------------------------------------------------------------
+// Tokens as custom properties, font
+// ---------------------------------------------------------------------------------------------
+:root {
+    .lm-base-properties();
+    .lm-mode-properties(light);
+    --lm-shadow-1: 0 1px 2px fade(@lm-night, 5%);
+    --lm-shadow-2: 0 12px 32px fade(@lm-night, 12%);
+    color-scheme: light;
+}
+
+html.dark-mode {
+    .lm-mode-properties(dark);
+    --lm-shadow-1: 0 1px 2px fade(#000, 30%);
+    --lm-shadow-2: 0 16px 40px fade(#000, 45%);
+    color-scheme: dark;
+}
+
+@font-face {
+    font-family: "Sora";
+    font-style: normal;
+    font-weight: 100 800;
+    font-display: swap;
+    src: url("../fonts/Sora-Variable.woff") format("woff");
+}
+
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, h5, h6,
+.header-title,
+.ui-dialog-title,
+legend {
+    font-weight: 600;
+    letter-spacing: -0.005em;
+}
+
+::selection {
+    color: var(--lm-text-strong);
+    background-color: var(--lm-highlight);
+}
+
+// Elastic's default logo (Roundcube's) must never flash: lumen.js swaps it for the Luminare
+// logo before the page is painted. A logo the admin configured (skin_logo) is never hidden.
+#logo[src*="skins/elastic/images/logo.svg"] {
+    visibility: hidden;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Keyboard focus: one visible ring everywhere (Elastic removes outlines in several places)
+// ---------------------------------------------------------------------------------------------
+:focus-visible {
+    outline: var(--lm-ring) solid var(--lm-focus);
+    outline-offset: 2px;
+}
+
+a:focus:not(:focus-visible),
+button:focus:not(:focus-visible) {
+    outline: 0;
+}
+
+// Items inside scrolling or clipping containers: draw the ring inside the item.
+.menu a:focus-visible,
+.listing li > a:focus-visible,
+.listing tbody tr:focus-visible,
+.listing tbody td:focus-visible,
+.popover a:focus-visible,
+.searchbar a:focus-visible,
+#layout > div > .header a.button:focus-visible,
+#taskmenu a:focus-visible {
+    outline: var(--lm-ring) solid var(--lm-focus);
+    outline-offset: -2px;
+}
+
+html:not(.touch) .listing li > a:focus-visible {
+    outline: var(--lm-ring) solid var(--lm-focus);
+    outline-offset: -2px;
+}
+
+.btn:focus,
+.btn.focus {
+    box-shadow: none;
+}
+
+.btn:focus-visible,
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible,
+.btn-danger:focus-visible {
+    outline: 0;
+    box-shadow: 0 0 0 2px var(--lm-surface), 0 0 0 calc(2px + var(--lm-ring)) var(--lm-focus);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Task menu (the rail)
+// ---------------------------------------------------------------------------------------------
+#layout-menu {
+    .popover-header img {
+        padding: 6px;
+    }
+}
+
+@media screen and (min-width: (@screen-width-xs + 1px)) {
+    #layout-menu {
+        background-color: var(--lm-rail);
+
+        #taskmenu a {
+            position: relative;
+            color: var(--lm-rail-text);
+            transition: color var(--lm-duration) var(--lm-ease), background-color var(--lm-duration) var(--lm-ease);
+
+            &:hover,
+            &:focus-visible {
+                color: var(--lm-rail-text-active);
+                background-color: var(--lm-rail-hover);
+            }
+
+            &:focus-visible {
+                outline-color: var(--lm-rail-focus);
+            }
+
+            &.selected {
+                color: var(--lm-rail-text-active);
+                background-color: var(--lm-rail-active);
+
+                &::after {
+                    content: "";
+                    position: absolute;
+                    inset-block: 8px;
+                    inset-inline-start: 0;
+                    width: 3px;
+                    border-start-end-radius: 3px;
+                    border-end-end-radius: 3px;
+                    background-color: var(--lm-rail-accent);
+                }
+            }
+        }
+
+        #taskmenu .action-buttons a,
+        #taskmenu .action-buttons a:hover {
+            color: var(--lm-rail-accent);
+        }
+
+        #taskmenu a.logout,
+        #taskmenu a.logout:hover {
+            color: var(--lm-rail-danger) !important;
+        }
+
+        #taskmenu .special-buttons {
+            background-color: var(--lm-rail);
+        }
+
+        #taskmenu .special-buttons a:not(:focus):not(:hover) {
+            background-color: transparent;
+        }
+    }
+}
+
+@media screen and (min-width: (@screen-width-medium + 1px)) {
+    #taskmenu span.inner {
+        font-size: @lm-rail-label;
+        letter-spacing: 0;
+    }
+}
+
+// Phone: the menu is a slide-in panel; its header carries the compact lockup on Night.
+html.layout-phone #layout-menu .popover-header {
+    background-color: @lm-night;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Column headers and toolbars
+// ---------------------------------------------------------------------------------------------
+#layout > div > .header {
+    font-weight: 600;
+}
+
+#layout > #layout-sidebar > .header {
+    background-color: transparent;
+}
+
+.menu.toolbar a,
+#layout > div > .header a.button,
+.menu.toolbar .dropbutton {
+    border-radius: var(--lm-radius-m);
+}
+
+.menu.toolbar .dropbutton a.dropdown {
+    border-start-start-radius: 0;
+    border-end-start-radius: 0;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Search bar: a quiet field on the sunken surface
+// ---------------------------------------------------------------------------------------------
+.searchbar {
+    margin: 8px;
+    border: 1px solid var(--lm-border);
+    border-radius: var(--lm-radius-m);
+    background-color: var(--lm-surface-sunken);
+    transition: border-color var(--lm-duration) var(--lm-ease);
+
+    &:focus-within {
+        border-color: var(--lm-focus);
+        background-color: var(--lm-surface);
+    }
+}
+
+html.dark-mode .searchbar:focus-within {
+    border-color: var(--lm-focus);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Sidebar lists (folders, settings sections, address books): rounded selection, no row lines
+// ---------------------------------------------------------------------------------------------
+#layout-sidebar {
+    .scroller > ul.listing,
+    .scroller > .listing {
+        padding: 4px 8px;
+    }
+
+    ul.listing li {
+        border-bottom: 0;
+        border-radius: var(--lm-radius-m);
+    }
+
+    ul.listing li ul {
+        border-top: 0;
+    }
+
+    ul.listing li > a {
+        border-radius: var(--lm-radius-m);
+    }
+
+    ul.listing li.selected > a,
+    ul.treelist li.selected > a {
+        font-weight: 600;
+        color: var(--lm-on-primary-tint);
+    }
+
+    .folderlist li.mailbox .unreadcount {
+        border-radius: var(--lm-radius-pill);
+        font-weight: 600;
+    }
+}
+
+html:not(.touch) #layout-sidebar ul.listing li:not(.selected) > a:hover {
+    background-color: var(--lm-surface-hover);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Message list and other row lists
+// ---------------------------------------------------------------------------------------------
+html:not(.touch) .messagelist tbody tr:not(.selected):hover td,
+html:not(.touch) #layout-list table.listing tbody tr:not(.selected):hover td {
+    background-color: var(--lm-surface-hover);
+}
+
+.messagelist {
+    tr.unread td.subject span.fromto {
+        color: var(--lm-text-strong);
+        font-weight: 600;
+    }
+
+    tr.unread td.subject span.subject a {
+        font-weight: 600;
+    }
+}
+
+.listing-info {
+    font-weight: 500;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Buttons and form controls
+// ---------------------------------------------------------------------------------------------
+.btn {
+    border-radius: var(--lm-radius-m);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.btn-lg {
+    border-radius: var(--lm-radius-l);
+}
+
+.btn-primary:hover:not(:disabled) {
+    background-color: var(--lm-primary-hover);
+    border-color: var(--lm-primary-hover);
+}
+
+.form-control,
+.custom-select,
+.input-group-text {
+    border-radius: var(--lm-radius-m);
+}
+
+.form-control,
+.custom-select {
+    border-color: var(--lm-border-control);
+    transition: border-color var(--lm-duration) var(--lm-ease), box-shadow var(--lm-duration) var(--lm-ease);
+}
+
+.form-control:focus,
+.custom-select:focus {
+    border-color: var(--lm-focus);
+    box-shadow: 0 0 0 3px fade(@lm-royal, 22%);
+}
+
+html.dark-mode .form-control:focus,
+html.dark-mode .custom-select:focus {
+    box-shadow: 0 0 0 3px fade(@lm-mint, 25%);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Popovers, menus, dialogs, tabs
+// ---------------------------------------------------------------------------------------------
+.popover {
+    border-radius: var(--lm-radius-l);
+    border-color: var(--lm-border);
+    box-shadow: var(--lm-shadow-2);
+}
+
+@media screen and (min-width: (@screen-width-small + 1px)) {
+    .popover .listing {
+        li:first-child {
+            border-start-start-radius: (@lm-radius-l - 1px);
+            border-start-end-radius: (@lm-radius-l - 1px);
+        }
+
+        li:last-child {
+            border-end-start-radius: (@lm-radius-l - 1px);
+            border-end-end-radius: (@lm-radius-l - 1px);
+        }
+    }
+}
+
+.ui-widget:not(.ui-dialog) {
+    border-radius: var(--lm-radius-l);
+    box-shadow: var(--lm-shadow-2);
+}
+
+.ui-menu {
+    border-radius: var(--lm-radius-l);
+}
+
+@media screen and (min-width: (@screen-width-xs + 1px)) {
+    .ui-dialog {
+        border-radius: var(--lm-radius-xl);
+        overflow: hidden;
+        box-shadow: var(--lm-shadow-2);
+    }
+}
+
+.ui-dialog .ui-dialog-titlebar {
+    border-bottom-color: var(--lm-border);
+}
+
+.nav-tabs {
+    border-bottom: 1px solid var(--lm-border);
+
+    .nav-link {
+        border: 0;
+        border-bottom: 2px solid transparent;
+        border-radius: 0;
+        color: var(--lm-text-2);
+        font-weight: 500;
+
+        &:hover {
+            color: var(--lm-text-strong);
+            border-bottom-color: var(--lm-border-control);
+        }
+
+        &.active,
+        &.active:hover {
+            color: var(--lm-on-primary-tint);
+            background-color: transparent;
+            border-bottom-color: var(--lm-primary);
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Toasts and inline alert boxes
+// ---------------------------------------------------------------------------------------------
+@media screen and (min-width: (@screen-width-xs + 1px)) {
+    #messagestack div {
+        border-radius: var(--lm-radius-l);
+        box-shadow: var(--lm-shadow-2);
+    }
+}
+
+.ui.alert {
+    border-radius: var(--lm-radius-m);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Login page: a Night hero with a gradient glow and a centred card
+// ---------------------------------------------------------------------------------------------
+body.task-login {
+    background-color: @lm-night;
+    background-image:
+        radial-gradient(56rem 36rem at 88% -12%, fade(@lm-royal, 55%), transparent 62%),
+        radial-gradient(44rem 30rem at -8% 108%, fade(@lm-lumen, 16%), transparent 64%),
+        linear-gradient(160deg, @lm-night 0%, #0B1630 100%);
+    background-attachment: fixed;
+
+    #layout {
+        overflow-y: auto;
+    }
+
+    #layout-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: @lm-space-5;
+        min-height: 100%;
+        height: auto;
+        padding: @lm-space-6 @lm-space-4;
+        background-color: transparent;
+    }
+
+    #logo {
+        position: static;
+        top: auto;
+        max-width: min(280px, 72vw);
+        max-height: 120px;
+        width: auto;
+        height: auto;
+        opacity: 1;
+    }
+
+    #logo.lumen-logo {
+        width: min(260px, 70vw);
+    }
+}
+
+#login-form {
+    top: auto;
+    width: 100%;
+    max-width: 400px;
+    padding: @lm-space-6 @lm-space-5 @lm-space-5;
+    color: var(--lm-text);
+    background-color: var(--lm-surface-raised);
+    border: 1px solid var(--lm-border);
+    border-radius: var(--lm-radius-xl);
+    box-shadow: 0 24px 48px fade(#000, 28%);
+
+    .input-group-text {
+        background-color: var(--lm-surface-sunken);
+        border-color: var(--lm-border-control);
+    }
+
+    .formbuttons {
+        margin-top: @lm-space-4;
+    }
+
+    #rcmloginsubmit {
+        text-transform: none;
+        letter-spacing: 0.01em;
+    }
+
+    #login-footer {
+        color: var(--lm-text-muted);
+        font-size: 0.9rem;
+    }
+}
+
+@media screen and (max-width: @screen-width-xs) {
+    #login-form {
+        padding: @lm-space-5 @lm-space-4 @lm-space-4;
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Dark mode fixes: places where Elastic uses a light-mode colour inside html.dark-mode
+// (same selectors as Elastic's dark rules, so these win by order)
+// ---------------------------------------------------------------------------------------------
+html.dark-mode {
+    a {
+        color: var(--lm-link);
+    }
+
+    a:hover {
+        color: var(--lm-link-hover);
+    }
+
+    .btn-link {
+        color: var(--lm-link);
+    }
+
+    // Primary buttons are Lumen in dark mode: Night text (Elastic uses one light text colour).
+    .btn-primary,
+    .btn-primary:focus,
+    .btn-primary:hover,
+    .btn-primary:not(:disabled):not(.disabled):active {
+        color: var(--lm-on-primary);
+    }
+
+    .floating-action-buttons a.button {
+        color: var(--lm-on-primary);
+    }
+
+    .tox .tox-dialog__footer .tox-button:not(.tox-button--secondary) {
+        color: var(--lm-on-primary);
+    }
+
+    .tox .tox-dialog__body-nav-item--active {
+        color: var(--lm-link);
+    }
+
+    .ui-datepicker .ui-state-highlight,
+    .ui-datepicker.ui-widget-content .ui-state-highlight {
+        color: var(--lm-on-primary-tint);
+    }
+
+    .menu.toolbar a.selected,
+    .searchbar a.selected {
+        color: var(--lm-success);
+    }
+
+    .messagelist tr.flagged:not(.deleted) td,
+    .messagelist tr.flagged:not(.deleted) span.attachment span {
+        color: var(--lm-danger);
+    }
+
+    #logo {
+        opacity: 1;
+    }
+
+    .nav-tabs {
+        border-color: var(--lm-border);
+
+        .nav-link {
+            color: var(--lm-text-2);
+            border-color: transparent;
+            border-bottom-color: transparent;
+        }
+
+        .nav-link:hover {
+            color: var(--lm-text-strong);
+            background: transparent;
+            border-color: transparent;
+            border-bottom-color: var(--lm-border-control);
+        }
+
+        .nav-link.active {
+            color: var(--lm-on-primary-tint);
+            background: transparent;
+            border-color: transparent;
+            border-bottom-color: var(--lm-primary);
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Reduced motion: no transitions (spinners keep turning: they show that work is going on)
+// ---------------------------------------------------------------------------------------------
+@media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    body.task-login {
+        background-attachment: scroll;
+    }
+}
