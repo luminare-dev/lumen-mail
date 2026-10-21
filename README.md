@@ -34,17 +34,22 @@ with the exact name of what changed if an update moved something.
 
 ## Quickstart
 
+On the server that runs Roundcube (as root; Node.js 20+ and Python 3.10+):
+
 ```bash
 git clone https://github.com/luminare-dev/lumen-mail.git && cd lumen-mail
-npm ci --omit=dev --ignore-scripts
-PYTHONPATH=generator python3 -m lumen_mail build --roundcube /var/www/roundcube --out /tmp/lumen --no-palette
-PYTHONPATH=generator python3 -m lumen_mail verify /tmp/lumen --roundcube /var/www/roundcube
-sudo cp -a /tmp/lumen /var/www/roundcube/skins/lumen
+npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+PYTHONPATH=generator python3 -m lumen_mail install-runtime --prefix /opt/lumen-mail
+/opt/lumen-mail/bin/lumen-mail install --roundcube /var/www/roundcube
 ```
 
 Then select it: `$config['skin'] = 'lumen';` in `config/config.inc.php` for everybody, or
 **Settings → Preferences → User Interface → Interface skin** for one user. On KeyHelp the field is
-**Configuration → Webmail → Interface skin**. Details, a dry run and how to remove it:
+**Configuration → Webmail → Interface skin**. The systemd units in `contrib/systemd/` restore and
+rebuild the skin after Roundcube updates.
+
+Without Node: each release has `lumen-<version>-roundcube-<version>.tar.gz` (and `.zip`) to
+extract into `<roundcube>/skins/`. Both ways, the KeyHelp commands, verification and rollback:
 [docs/install.md](docs/install.md).
 
 ## How it works
@@ -71,6 +76,11 @@ flowchart LR
   Elastic's footer with `skinpath="skins/elastic"`; no Elastic template is copied.
 - **Safe after updates.** `lumen-build.stamp` records the Roundcube version, a digest of Elastic's
   LESS and templates and the sha256 of every file, so `verify` knows when a rebuild is due.
+- **Restore at once, rebuild later.** KeyHelp deletes the whole Roundcube folder on every
+  Roundcube update. A systemd path unit notices the deletion, and `lumen-mail sync` copies the
+  last good build back as soon as the new release is extracted (no Node, milliseconds), then
+  rebuilds against the new Elastic when the update has finished, with an atomic swap. A failed
+  rebuild keeps the working build. Details: [docs/update-safety.md](docs/update-safety.md).
 
 ## Design decisions
 
@@ -83,6 +93,8 @@ The decisions behind this project are recorded as short ADRs in [docs/adr/](docs
 - [ADR 0005: A skin that extends Elastic, compiled on the server](docs/adr/0005-a-skin-that-extends-elastic-built-on-the-server.md)
 - [ADR 0006: Swap Elastic's default logo at run time](docs/adr/0006-swap-the-logo-at-run-time.md)
 - [ADR 0007: Sora as WOFF, and a stamp file that is not served](docs/adr/0007-sora-as-woff-and-a-stamp-that-is-not-served.md)
+- [ADR 0008: Restore at once, rebuild later](docs/adr/0008-restore-at-once-rebuild-later.md)
+- [ADR 0009: A release package built against a pinned Roundcube](docs/adr/0009-a-release-package-built-against-a-pinned-roundcube.md)
 
 What Lumen changes in Elastic, and why, is listed in
 [docs/elastic-inventory.md](docs/elastic-inventory.md); every text and UI colour pair is in
@@ -97,7 +109,8 @@ release by hand. lumen-mail sits in between: Elastic's structure, our look, rebu
 
 | Component | Tested with | Supported |
 |---|---|---|
-| Roundcube Webmail (Elastic skin) | 1.7.3 (drift check and stand-in builds against its Elastic) | any Roundcube whose Elastic passes the drift check; only 1.7.3 has been checked |
+| Roundcube Webmail (Elastic skin) | 1.7.3 (drift check, builds, a scratch copy served with `php -S`) | the 1.7 series; the features Lumen uses exist since 1.5 (see [install](docs/install.md)), older releases are untested |
+| systemd (sync units, optional) | 255 (`systemd-analyze verify` and `security`; not yet started on a server) | path units with `PathChanged=` and `StateDirectory=` |
 | Node.js (build only) | 22.23 on this server; the CI skin job uses 22 | 20 or later (`engines` in package.json) |
 | Python (generator) | 3.12 | 3.12; the code needs 3.10 or later and only the standard library |
 | Browsers | as Elastic | the last two versions of Chrome, Edge, Firefox and Safari |
@@ -117,20 +130,30 @@ Fixes go into the latest minor release only. See the
   Elastic's layout stays left-to-right.
 - Message bodies keep their senders' colours.
 - Only Roundcube 1.7.3 has been tested.
+- As the system skin, Lumen depends on `skins/lumen` being present. An update that removes the
+  Roundcube folder (KeyHelp does) shows error pages until the sync unit has restored it; without
+  the units, until someone does.
+- The release package matches the Elastic of one Roundcube release exactly; for other releases of
+  the series, building on the server gives the exact match.
 
 ## Results
 
 | What | Value | How it was measured |
 |---|---|---|
-| Generator and contrast tests | 39 tests pass (34 generator, 5 contrast) | `python3 -m unittest discover -s tests` with the stand-in compiler, 2026-10-21 |
+| Tests | 212 tests pass, 7 skipped (the real compile without `node_modules`, and template-only checks) | `python3 -m unittest discover -s tests` with the stand-in compiler, 2026-10-21 |
+| Fast restore after a simulated KeyHelp update | `skins/lumen` back in 0.004 to 0.009 s, during the extraction and before the new `config.inc.php` existed: no error time added by Lumen | scratch copy of Roundcube 1.7.3 on this server, `rm -rf` + `tar -xzf` + new config + `chown -R`, login page polled every 50 ms ([update safety](docs/update-safety.md)), 2026-10-21 |
+| Sync with nothing to do | 0.09 to 0.13 s, 21 MB RSS, no output, nothing written, no compiler started | `/usr/bin/time lumen-mail sync` on the scratch copy, 2026-10-21 |
+| Wrapper template | `lumen.js` before Elastic's `ui.min.js`; palette script and labels only on top-level, non-print, non-error, non-login pages; skin labels reach `rcmail.add_label` | Roundcube's own template engine on the scratch copy (`about`, `login`, `error`, framed, print), 2026-10-21 |
+| Sync unit | `systemd-analyze verify` passes; exposure 0.6 ("SAFE") | `systemd-analyze security --offline=true`, systemd 255, 2026-10-21 |
+| Release package | byte-identical archives from two runs; the official 1.7.3 archive's sha256 checks out | `scripts/package.py` against the installed Elastic and the downloaded release, 2026-10-21 |
 | Drift check | passes against Roundcube 1.7.3's Elastic: 161 Elastic variables set, 3 read, every file and marker present | `lumen_mail.elastic.check_drift`, 2026-10-21 |
-| Pipeline against the installed Elastic | build and verify pass with the stand-in compiler (url resolution, cache-busters, served types, stamp) | `build --compiler tests/stub_compiler.py` against Roundcube 1.7.3, 2026-10-21 |
 | Contrast | 58 pairs pass WCAG 2.2 AA in light and dark mode; lowest 3.43:1 (light) and 3.17:1 (dark), both UI parts with a 3:1 minimum | `python3 scripts/contrast.py`, 2026-10-21 |
 | Font | Sora variable font 60,684 bytes as WOFF (TTF 111,400) | `scripts/build_font.py`, 2026-10-21 |
 
 ## Documentation and links
 
-- [Installation](docs/install.md) · [Configuration](docs/configuration.md) ·
+- [Installation](docs/install.md) · [Update safety](docs/update-safety.md) ·
+  [Command reference](docs/cli.md) · [Configuration](docs/configuration.md) ·
   [Upgrade](docs/upgrade.md) · [Troubleshooting](docs/troubleshooting.md) ·
   [Runbook](docs/runbook.md) · [Elastic inventory](docs/elastic-inventory.md) ·
   [Contrast](docs/contrast.md) · [ADRs](docs/adr/)

@@ -6,17 +6,33 @@ release may contain breaking changes; they are listed under "BREAKING CHANGES" i
 
 ## After a Roundcube update
 
-Rebuild the skin: `verify` reports `built for Roundcube X, installed is Y` or `built from different
-Elastic sources` when the installed skin no longer matches. If `build` stops with exit code 3, the
-new Elastic changed something Lumen relies on; the message names it. Keep the old skin folder in
-place (it still works with the new Elastic in most cases) and open an issue with the message.
+With the sync units enabled, nothing: the unit restores `skins/lumen` within a second of the
+extraction and rebuilds it for the new release ([update safety](update-safety.md)). Check with
+`lumen-mail status --roundcube <root>`. If the rebuild stops with exit code 3, the new Elastic
+changed something Lumen relies on; the journal names it, the previous build stays active, and the
+fix is a lumen-mail update.
+
+Without the units: `lumen-mail install --roundcube <root>` (or `build` and `verify` by hand).
 
 ## After a lumen-mail update
 
 1. Read the changelog entries between your version and the new one.
-2. `npm ci --omit=dev --ignore-scripts` (the compiler pins may have changed).
-3. Build into a new folder, run `verify`, then replace `skins/lumen` (see
-   [Installation](install.md)).
+2. Update the checkout and the pinned compiler:
+
+   ```bash
+   cd /root/lumen-mail && git pull --ff-only
+   npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+   ```
+
+3. Replace the runtime (atomic; the old one is removed afterwards):
+
+   ```bash
+   PYTHONPATH=generator python3 -m lumen_mail install-runtime --prefix /opt/lumen-mail
+   ```
+
+4. Rebuild: either wait for the next timer run (the new lumen-mail version makes the stamp stale)
+   or run `/opt/lumen-mail/bin/lumen-mail install --roundcube <root>` now.
+5. If the units in `contrib/systemd/` changed, copy them again and run `systemctl daemon-reload`.
 
 ## Version notes
 

@@ -61,7 +61,7 @@ class BuildTest(FakeTreeCase):
         meta = json.loads((out / "meta.json").read_text())
         self.assertEqual((meta["name"], meta["extends"], meta["localization"]), ("Lumen", "elastic", True))
         readme = (out / "README.md").read_text()
-        self.assertIn(f"Lumen {VERSION}, built on this server for Roundcube {FAKE_VERSION}", readme)
+        self.assertIn(f"Lumen {VERSION}, compiled for Roundcube {FAKE_VERSION}", readme)
         self.assertIn("Aleksander Machniak and The Roundcube Dev Team", readme)
         self.assertNotIn("$", readme)
 

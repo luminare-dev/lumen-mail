@@ -6,7 +6,7 @@ Runs when node_modules has less and clean-css and a Roundcube tree is available:
   * LUMEN_MAIL_TEST_OUT: where the build goes (default a new folder under /var/tmp/lumen-mail when
     that exists, else the system temp dir); removed afterwards unless LUMEN_MAIL_TEST_KEEP=1;
   * LUMEN_MAIL_TEST_REQUIRE=1 turns the skip into a failure (CI).
-On a small host, run it with a memory limit (docs/install.md, "Building on a small server").
+On a small host, run it with a memory limit (the systemd-run line in docs/install.md).
 """
 
 from __future__ import annotations

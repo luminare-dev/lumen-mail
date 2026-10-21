@@ -47,10 +47,40 @@ server.
 ## Webmail shows an error page after a Roundcube update on KeyHelp
 
 **Cause:** KeyHelp replaced the Roundcube folder, which removed `skins/lumen`, while Lumen is the
-system skin.
+system skin, and the sync units did not put it back.
 
-**Fix:** copy the last build back (`cp -a <build> /path/to/roundcube/skins/lumen`) or set the
-Interface skin to Elastic, then rebuild.
+**Fix:** `systemctl start lumen-mail-sync.service` restores the last good build; then check why
+the units did not run (`systemctl status lumen-mail-sync.path lumen-mail-sync.timer`). The
+[runbook](runbook.md) has the details.
+
+## `another lumen-mail run holds .../lock` (exit code 75)
+
+**Cause:** an install, sync, rollback or uninstall is running, for example the unit after a
+Roundcube update.
+
+**Fix:** wait and run the command again; `--lock-timeout 300` waits up to five minutes.
+
+## `uninstall` says `the configured system skin is lumen` (exit code 5)
+
+**Cause:** `config.inc.php` still selects Lumen; removing the folder would break every page.
+
+**Fix:** select Elastic first (KeyHelp: Configuration → Webmail → Interface skin), then run
+`uninstall` again. If the setting is written in a form lumen-mail cannot read (an expression or an
+include), check it yourself and pass `--force`.
+
+## `check` exits 10 right after `install`
+
+**Cause:** the runtime that `check` uses differs from the one that built the skin (for example the
+checkout instead of `/opt/lumen-mail`), so the source digest in the stamp does not match.
+
+**Fix:** run `install`, `check` and the unit from the same runtime: `/opt/lumen-mail/bin/lumen-mail`.
+
+## The unit fails with status 226/NAMESPACE
+
+**Cause:** a path in `BindPaths=` does not exist (for example a Roundcube root that was moved), so
+systemd cannot set up the sandbox.
+
+**Fix:** correct the paths in the service and the path unit, then `systemctl daemon-reload`.
 
 ## Still stuck?
 
