@@ -86,6 +86,27 @@ class GitleaksConfigTest(unittest.TestCase):
         found = set(self.scan(tmp))
         self.assertTrue({"cfx-server-key", "txadmin-api-token"} <= found, found)
 
+    def test_roundcube_secrets_are_found(self):
+        """A des_key and a DSN password in Roundcube's config syntax, also in a renamed copy."""
+        def rand(n: int) -> str:
+            return "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(n))
+
+        tmp = temp_dir("gl-rc-test-")
+        config = (f"<?php\n$config['db_dsnw'] = 'mysql://roundcube:{rand(28)}@localhost/roundcube';\n"
+                  f"$config['des_key'] = '{rand(24)}';\n")
+        (tmp / "config.inc.php.bak").write_text(config, encoding="utf-8")
+        found = self.scan(tmp)
+        self.assertIn("roundcube-des-key", found)
+        self.assertIn("dsn-credentials", found)
+
+    def test_roundcube_placeholders_stay_clean(self):
+        tmp = temp_dir("gl-rc-clean-")
+        (tmp / "sample.php").write_text("<?php\n$config['db_dsnw'] = 'mysql://roundcube:password@localhost/rc';\n"
+                                        "$config['des_key'] = 'rcmail-!24ByteDESkey*Str';\n"
+                                        "$config['db_dsnw'] = 'sqlite:////var/tmp/example/db.sqlite?mode=0600';\n",
+                                        encoding="utf-8")
+        self.assertEqual([r for r in self.scan(tmp) if r in ("roundcube-des-key", "dsn-credentials")], [])
+
 
 if __name__ == "__main__":
     unittest.main()

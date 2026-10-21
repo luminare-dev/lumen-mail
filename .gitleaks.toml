@@ -1,10 +1,34 @@
-# gitleaks configuration: the built-in rules plus rules for game-server and chat secrets that
-# the defaults do not cover (checked against gitleaks 8.30.1's default config, 2026-10-06).
+# gitleaks configuration for lumen-mail: the built-in rules, two rules for Roundcube's own
+# secrets that the defaults miss (checked against gitleaks 8.30.1, 2026-10-22), and the studio's
+# shared rules for game-server and chat secrets, which every Luminare Development repository
+# keeps so that all of them scan for the same things.
 # Run locally:  gitleaks git --redact --config .gitleaks.toml .
-title = "oss-template gitleaks configuration"
+title = "lumen-mail gitleaks configuration"
 
 [extend]
 useDefault = true
+
+[[rules]]
+id = "roundcube-des-key"
+description = "Roundcube des_key set to a literal value (it encrypts the IMAP password in the session)"
+regex = '''\$config\[\s*['"]des_key['"]\s*\]\s*=\s*['"]([^'"]{12,})['"]'''
+secretGroup = 1
+keywords = ["des_key"]
+
+  [[rules.allowlists]]
+  description = "documentation placeholders and Roundcube's sample value"
+  regexes = ['''(?i)example|placeholder|changeme''', '''^rcmail-!24ByteDESkey\*Str$''']
+
+[[rules]]
+id = "dsn-credentials"
+description = "database password inside a DSN (Roundcube's db_dsnw, db_dsnr and similar)"
+regex = '''\b(?:mysqli?|pgsql|postgres(?:ql)?|sqlsrv|mssql|sqlite)://[^:\s/'"@]+:([^@\s'"]{6,})@'''
+secretGroup = 1
+keywords = ["://"]
+
+  [[rules.allowlists]]
+  description = "documentation placeholders and templated values"
+  regexes = ['''(?i)^(pass(word)?|secret|changeme|example|placeholder)$''', '''^\$\{?[A-Za-z_]''', '''^\{\{.*\}\}$''']
 
 [[rules]]
 id = "cfx-server-key"
