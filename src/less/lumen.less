@@ -105,6 +105,21 @@ html:not(.touch) .listing li > a:focus-visible {
     box-shadow: 0 0 0 2px var(--lm-surface), 0 0 0 calc(2px + var(--lm-ring)) var(--lm-focus);
 }
 
+// Elastic sets outline: 0 on these with a selector that beats :focus-visible alone (the compose
+// links in input groups, such as Edit identities and Add contact, and the image tools).
+.input-group a:focus-visible,
+.image-tools a:focus-visible {
+    outline: var(--lm-ring) solid var(--lm-focus);
+    outline-offset: -2px;
+}
+
+// On touch-capable screens (many laptops) Elastic removes every button's box-shadow with
+// !important, and with it the ring above: draw an outline there instead.
+html.touch .btn:focus-visible {
+    outline: var(--lm-ring) solid var(--lm-focus);
+    outline-offset: 2px;
+}
+
 // ---------------------------------------------------------------------------------------------
 // Task menu (the rail)
 // ---------------------------------------------------------------------------------------------
@@ -188,6 +203,15 @@ html:not(.touch) .listing li > a:focus-visible {
     content: @fa-var-search;
 }
 
+// Elastic pins .special-buttons to the bottom of the rail. On short screens one more item there
+// would cover the task items, so the trigger is left out where a keyboard is likely (Ctrl/Cmd+K
+// still opens the palette); on touch screens it is the only way in and stays.
+@media screen and (min-width: (@screen-width-xs + 1px)) and (max-height: 560px) {
+    html:not(.touch) #taskmenu a.lumen-palette {
+        display: none;
+    }
+}
+
 // Phone: the menu is a slide-in panel; its header carries the compact lockup on Night.
 html.layout-phone #layout-menu .popover-header {
     background-color: @lm-night;
@@ -220,7 +244,7 @@ html.layout-phone #layout-menu .popover-header {
 // ---------------------------------------------------------------------------------------------
 .searchbar {
     margin: 8px;
-    border: 1px solid var(--lm-border);
+    border: 1px solid var(--lm-border-control);
     border-radius: var(--lm-radius-m);
     background-color: var(--lm-surface-sunken);
     transition: border-color var(--lm-duration) var(--lm-ease);
@@ -229,6 +253,11 @@ html.layout-phone #layout-menu .popover-header {
         border-color: var(--lm-focus);
         background-color: var(--lm-surface);
     }
+}
+
+// Elastic's dark rule sets its own border colour on the search bar.
+html.dark-mode .searchbar {
+    border-color: var(--lm-border-control);
 }
 
 html.dark-mode .searchbar:focus-within {
@@ -481,8 +510,10 @@ body.task-login {
         margin-top: @lm-space-4;
     }
 
+    // Sentence case like every other button. ui.js adds Bootstrap's text-uppercase, which is
+    // !important, so this has to be too (it wins by specificity).
     #rcmloginsubmit {
-        text-transform: none;
+        text-transform: none !important;
         letter-spacing: 0.01em;
     }
 
@@ -552,6 +583,21 @@ html.dark-mode {
 
     #logo {
         opacity: 1;
+    }
+
+    // Elastic has no dark value for the list focus indicator (message list, contacts, settings
+    // sections, identities): it stayed light-mode Royal on the dark surface.
+    &:not(.touch) {
+        .listing li > a:focus,
+        .listing.focus tbody tr.focused > td:first-child,
+        .listing.focus:not(.withselection) tbody tr.focused > td.selection + td {
+            border-left-color: var(--lm-focus);
+        }
+    }
+
+    // The same for the focused HTML editor's border (Elastic sets it with !important).
+    div.tox.focused {
+        border-color: var(--lm-focus) !important;
     }
 
     .nav-tabs {

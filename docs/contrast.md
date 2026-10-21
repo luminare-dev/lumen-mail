@@ -18,7 +18,7 @@ Elastic's `html.dark-mode`. The task menu and the login hero are Night in both m
 | `text-strong` | `surface` | headers, dialog titles, unread senders | 4.5:1 | 18.67:1 pass (`#0A1224` on `#FFFFFF`) | 17.68:1 pass (`#FFFFFF` on `#10182B`) |
 | `text-2` | `surface` | toolbar buttons and their labels, tabs | 4.5:1 | 9.74:1 pass (`#39445C` on `#FFFFFF`) | 9.75:1 pass (`#B7C1D3` on `#10182B`) |
 | `text-2` | `surface-hover` | hovered toolbar buttons | 4.5:1 | 8.87:1 pass (`#39445C` on `#F2F4FB`) | 8.88:1 pass (`#B7C1D3` on `#102236`) |
-| `text-muted` | `surface` | dates, sizes, hints, placeholders, page navigation | 4.5:1 | 5.37:1 pass (`#5E6B84` on `#FFFFFF`) | 7.29:1 pass (`#9CA7BB` on `#10182B`) |
+| `text-muted` | `surface` | dates, sizes, hints, placeholders, page navigation; deleted and disabled rows in dark mode | 4.5:1 | 5.37:1 pass (`#5E6B84` on `#FFFFFF`) | 7.29:1 pass (`#9CA7BB` on `#10182B`) |
 | `text-muted` | `surface-sunken` | secondary text in the folder column and search field | 4.5:1 | 4.96:1 pass (`#5E6B84` on `#F3F6FB`) | 7.51:1 pass (`#9CA7BB` on `#0D1527`) |
 | `text-muted` | `surface-raised` | login footer, popover separators | 4.5:1 | 5.37:1 pass (`#5E6B84` on `#FFFFFF`) | 7.01:1 pass (`#9CA7BB` on `#131C2F`) |
 | `text-muted` | `primary-tint` | date and sender in a selected message row | 4.5:1 | 4.59:1 pass (`#5E6B84` on `#E9EDF9`) | 5.99:1 pass (`#9CA7BB` on `#142B3E`) |
@@ -59,16 +59,17 @@ Elastic's `html.dark-mode`. The task menu and the login hero are Night in both m
 | `border-control` | `surface` | input, select and checkbox borders | 3.0:1 | 3.72:1 pass (`#79859C` on `#FFFFFF`) | 3.29:1 pass (`#5E6B84` on `#10182B`) |
 | `border-control` | `bg` | controls on the page background | 3.0:1 | 3.43:1 pass (`#79859C` on `#F3F6FB`) | 3.48:1 pass (`#5E6B84` on `#0A1224`) |
 | `border-control` | `surface-raised` | inputs in dialogs and the login card | 3.0:1 | 3.72:1 pass (`#79859C` on `#FFFFFF`) | 3.17:1 pass (`#5E6B84` on `#131C2F`) |
+| `border-control` | `surface-sunken` | search field border | 3.0:1 | 3.43:1 pass (`#79859C` on `#F3F6FB`) | 3.39:1 pass (`#5E6B84` on `#0D1527`) |
 | `focus` | `bg` | focus ring on the page | 3.0:1 | 7.03:1 pass (`#1F47C4` on `#F3F6FB`) | 12.90:1 pass (`#06F2C4` on `#0A1224`) |
-| `focus` | `surface` | focus ring in lists, content, headers; focused input border | 3.0:1 | 7.62:1 pass (`#1F47C4` on `#FFFFFF`) | 12.21:1 pass (`#06F2C4` on `#10182B`) |
+| `focus` | `surface` | focus ring in lists, content, headers; list focus indicator; focused input and editor border | 3.0:1 | 7.62:1 pass (`#1F47C4` on `#FFFFFF`) | 12.21:1 pass (`#06F2C4` on `#10182B`) |
 | `focus` | `surface-raised` | focus ring in dialogs and the login card | 3.0:1 | 7.62:1 pass (`#1F47C4` on `#FFFFFF`) | 11.75:1 pass (`#06F2C4` on `#131C2F`) |
 | `focus` | `surface-sunken` | focus ring in the folder column, search field border | 3.0:1 | 7.03:1 pass (`#1F47C4` on `#F3F6FB`) | 12.57:1 pass (`#06F2C4` on `#0D1527`) |
-| `focus` | `primary-tint` | focus ring on a selected row | 3.0:1 | 6.51:1 pass (`#1F47C4` on `#E9EDF9`) | 10.04:1 pass (`#06F2C4` on `#142B3E`) |
+| `focus` | `primary-tint` | focus ring and list focus indicator on a selected row | 3.0:1 | 6.51:1 pass (`#1F47C4` on `#E9EDF9`) | 10.04:1 pass (`#06F2C4` on `#142B3E`) |
 | `primary` | `surface` | unread dot, checked controls, active tab underline, quota bar | 3.0:1 | 7.62:1 pass (`#1F47C4` on `#FFFFFF`) | 11.32:1 pass (`#5BDFFF` on `#10182B`) |
 | `scrollbar` | `bg` | scrollbar thumb | 3.0:1 | 3.43:1 pass (`#79859C` on `#F3F6FB`) | 3.48:1 pass (`#5E6B84` on `#0A1224`) |
 | `link` | `surface-raised` | matched characters in the command palette | 4.5:1 | 7.62:1 pass (`#1F47C4` on `#FFFFFF`) | 10.89:1 pass (`#5BDFFF` on `#131C2F`) |
 
-59 pairs; lowest ratio 3.43:1 in light mode and 3.17:1 in dark mode.
+60 pairs; lowest ratio 3.43:1 in light mode and 3.17:1 in dark mode.
 
 The command palette (palette/src/palette.css) draws with the same tokens in its shadow root;
 its pairs (dialog text, hints, matched characters, the active row, the focus ring) are rows above.
