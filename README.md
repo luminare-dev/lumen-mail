@@ -248,8 +248,8 @@ named only because the skin can be selected in KeyHelp's webmail settings.
 
 [MIT](LICENSE). The licence covers the code only: the project name, logo, header images,
 `docs/brand/`, the logo files in `skin/images/` and `skin/thumbnail.png` are not licensed (see
-[NOTICE](NOTICE)). The stylesheets the generator compiles on your server are an adaptation of
-Roundcube's Elastic skin and are licensed under
+[NOTICE](NOTICE)). The stylesheets the generator compiles on your server, and those in the
+release packages, are an adaptation of Roundcube's Elastic skin and are licensed under
 [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/), like Elastic; the installed
 skin's `README.md` credits Elastic's authors. Sora is under the SIL Open Font License 1.1. The
 command palette and the gallery bundle React, React DOM and scheduler (MIT, Copyright (c) Meta

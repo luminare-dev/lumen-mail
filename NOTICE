@@ -9,6 +9,8 @@ the name and logo of this project, the README header images, the social
 preview image and all files in docs/brand/ and skin/images/ (the logo files
 the skin displays), as well as skin/thumbnail.png (the skin preview image),
 are not licensed under MIT or under any other licence in this repository.
+In an installed skin and in release packages, those skin files are images/
+and thumbnail.png.
 No permission is granted to use them, except as required for reasonable and
 customary use in describing the origin of the work and reproducing the
 content of this NOTICE file.
@@ -19,6 +21,7 @@ Authors and is licensed under the SIL Open Font License, Version 1.1
 (https://openfontlicense.org). skin/fonts/Sora-Variable.woff is that font,
 unchanged except for the WOFF container (scripts/build_font.py), distributed
 under the same licence (skin/fonts/Sora-OFL.txt); it keeps its own licence.
+In an installed skin and in release packages, these files are in fonts/.
 
 Roundcube and the Elastic skin
 This repository contains no Roundcube file: no template, stylesheet, LESS
