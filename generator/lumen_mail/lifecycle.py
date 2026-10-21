@@ -654,21 +654,14 @@ class Lifecycle:
         self.save_last_good(self.skin_dir)
         self.log.notice(f"saved skins/lumen as the last good build ({describe(stamp)})")
 
-    def _rebuild(self, state: SyncState, reasons: list[str], deadline: float, forced: bool) -> int:
-        self.log.info("rebuild needed: " + "; ".join(reasons))
-        if not self._wait_settled(deadline):
-            self.log.warning(f"the Roundcube tree at {self.roundcube} kept changing for {self.wait:g} s; "
-                             "the rebuild waits for the next run")
-            return EXIT_TEMPFAIL
-        rc = Roundcube.at(self.roundcube)
-        want = self.wanted(rc)
-        key = want.key()
+    def _blocked(self, state: SyncState, want: Wanted, forced: bool) -> bool:
+        """True (and logged) when the back-off or the memory check holds the rebuild back."""
         now = self.now()
-        if state.failure and state.failure.get("key") == key and not forced:
+        if state.failure and state.failure.get("key") == want.key() and not forced:
             next_attempt = parse_iso(state.failure.get("next_attempt"))
             if next_attempt and now < next_attempt:
                 self.log.info(f"the last rebuild for these inputs failed; the next attempt is after {iso(next_attempt)}")
-                return EXIT_TEMPFAIL
+                return True
         available = self.meminfo()
         if self.min_available_mb and available is not None and available < self.min_available_mb:
             reason = (f"only {available} MB of memory available, the compile needs {self.min_available_mb} MB; "
@@ -678,6 +671,22 @@ class Lifecycle:
                               "since": iso(now) if first else (state.deferred or {}).get("since")}
             state.save(self.state, self.owner())
             self.log.emit("notice" if first else "info", f"rebuild deferred: {reason}")
+            return True
+        return False
+
+    def _rebuild(self, state: SyncState, reasons: list[str], deadline: float, forced: bool) -> int:
+        self.log.info("rebuild needed: " + "; ".join(reasons))
+        # Cheap checks first: a deferred or backed-off rebuild must not hold the lock while settling.
+        if self._blocked(state, self.wanted(Roundcube.at(self.roundcube)), forced):
+            return EXIT_TEMPFAIL
+        if not self._wait_settled(deadline):
+            self.log.warning(f"the Roundcube tree at {self.roundcube} kept changing for {self.wait:g} s; "
+                             "the rebuild waits for the next run")
+            return EXIT_TEMPFAIL
+        rc = Roundcube.at(self.roundcube)
+        want = self.wanted(rc)
+        key = want.key()
+        if self._blocked(state, want, forced):
             return EXIT_TEMPFAIL
         start = self.clock()
         inputs = (want.roundcube_version, want.elastic_digest)

@@ -20,6 +20,7 @@ replaced without --force.
 
 from __future__ import annotations
 
+import compileall
 import datetime as _dt
 import json
 import os
@@ -178,6 +179,8 @@ def install_runtime(sources: Sources, prefix: Path, log: Log, dry_run: bool = Fa
             "files": manifest_files,
         }
         (new / MANIFEST).write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        # Bytecode now: the unit runs with a read-only file system and PYTHONDONTWRITEBYTECODE=1.
+        compileall.compile_dir(str(new / "generator"), quiet=1, ddir=str(prefix / "generator"))
         for dirpath, _dirs, names in os.walk(new):
             os.chmod(dirpath, 0o755)
             if owner and os.geteuid() == 0:

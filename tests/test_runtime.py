@@ -79,6 +79,7 @@ class RuntimeTest(unittest.TestCase):
             self.assertIn(rel, manifest["files"])
         self.assertFalse((self.prefix / "node_modules" / "react").exists())
         self.assertFalse((self.prefix / "palette").exists())
+        self.assertTrue(list((self.prefix / "generator" / "lumen_mail" / "__pycache__").glob("lifecycle.*.pyc")))
         wrapper = self.prefix / "bin" / "lumen-mail"
         self.assertTrue(os.access(wrapper, os.X_OK))
         env = {k: v for k, v in os.environ.items() if not k.startswith(("LUMEN_MAIL_", "PYTHON"))}
