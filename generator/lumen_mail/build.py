@@ -121,7 +121,7 @@ def build(opts: BuildOptions) -> BuildResult:
         helpers = link_elastic_images(rc.elastic_dir, skin)
         command = compiler_command(sources, opts.compiler, opts.node)
         try:
-            result = run_compiler(command, jobs, sources.node_modules)
+            result = run_compiler(command, jobs, sources.node_modules, allowed_roots=[mirror, rc.elastic_dir])
         finally:
             for link in helpers:
                 link.unlink()

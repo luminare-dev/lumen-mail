@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "generator"))
 
 from lumen_mail.build import BuildOptions, build  # noqa: E402
-from lumen_mail.compiler import CompileJob, compiler_command, run_compiler  # noqa: E402
+from lumen_mail.compiler import CompileError, CompileJob, compiler_command, run_compiler  # noqa: E402
 from lumen_mail.cssurls import iter_urls  # noqa: E402
 from lumen_mail.roundcube import Roundcube  # noqa: E402
 from lumen_mail.sources import Sources  # noqa: E402
@@ -136,12 +136,84 @@ class RealCompileTest(unittest.TestCase):
         tmp.mkdir()
         entry = tmp / "entry.less"
         entry.write_text(f'@import "{(RC_ROOT / "skins/elastic/styles/styles.less").as_posix()}";\n', encoding="utf-8")
-        run_compiler(compiler_command(self.sources), [CompileJob(entry, tmp / "e.css", tmp / "e.min.css")], NODE_MODULES)
+        run_compiler(compiler_command(self.sources), [CompileJob(entry, tmp / "e.css", tmp / "e.min.css")], NODE_MODULES,
+                     allowed_roots=[tmp, RC_ROOT / "skins" / "elastic"])
         ours = (tmp / "e.min.css").read_text(encoding="utf-8").count("{")
         shipped = (RC_ROOT / "skins/elastic/styles/styles.min.css").read_text(encoding="utf-8").count("{")
         print(f"\n[integration] parity: {ours} blocks from our toolchain, {shipped} in Elastic's styles.min.css",
               file=sys.stderr)
         self.assertLess(abs(ours - shipped) / shipped, 0.05)
+
+
+
+def why_not_node() -> str | None:
+    if not (NODE_MODULES / "less" / "package.json").is_file() or not (NODE_MODULES / "clean-css").is_dir():
+        return "node_modules has no less/clean-css (run npm ci --ignore-scripts)"
+    if shutil.which(os.environ.get("LUMEN_MAIL_NODE", "node")) is None:
+        return "node is not on the PATH"
+    return None
+
+
+NODE_REASON = why_not_node()
+
+
+@unittest.skipIf(NODE_REASON, NODE_REASON or "")
+class CompileHardeningTest(unittest.TestCase):
+    """compile.mjs runs nothing from the LESS it compiles and reads nothing outside its folders:
+    Elastic's LESS can be changed by the Roundcube owner (the webmail's PHP user on KeyHelp)."""
+
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp(prefix="lumen-mail-harden-", dir=out_base()))
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        self.allowed = self.tmp / "allowed"
+        self.allowed.mkdir()
+        self.outside = self.tmp / "outside"
+        self.outside.mkdir()
+        self.marker = self.tmp / "plugin-ran.txt"
+        self.sources = Sources.locate(ROOT, palette=ROOT / "tests" / "fixtures" / "lumen-palette.js")
+        evil = f"require('fs').writeFileSync({json.dumps(str(self.marker))}, 'uid=' + process.getuid());\n" \
+               "module.exports = { install() {} };\n"
+        (self.allowed / "evil.js").write_text(evil, encoding="utf-8")
+
+    def compile(self, text: str) -> str:
+        entry = self.allowed / "entry.less"
+        entry.write_text(text, encoding="utf-8")
+        run_compiler(compiler_command(self.sources), [CompileJob(entry, self.allowed / "o.css", self.allowed / "o.min.css")],
+                     NODE_MODULES, allowed_roots=[self.allowed])
+        return (self.allowed / "o.css").read_text(encoding="utf-8")
+
+    def assert_refused(self, text: str, needle: str) -> None:
+        with self.assertRaises(CompileError) as ctx:
+            self.compile(text)
+        self.assertIn(needle, str(ctx.exception))
+        self.assertFalse(self.marker.exists(), "the plugin ran")
+
+    def test_a_plugin_in_an_imported_file_never_runs(self):
+        (self.allowed / "imported.less").write_text('@plugin "evil";\n.a { color: red; }\n', encoding="utf-8")
+        self.assert_refused('@import "imported.less";\n', "is not allowed in a Lumen build")
+
+    def test_a_plugin_in_the_entry_never_runs(self):
+        self.assert_refused('@plugin "./evil.js";\n.a { color: red; }\n', "is not allowed in a Lumen build")
+
+    def test_imports_outside_the_allowed_folders_are_refused(self):
+        (self.outside / "secret.less").write_text(".secret { color: red; }\n", encoding="utf-8")
+        os.symlink(self.outside / "secret.less", self.allowed / "link.less")
+        self.assert_refused('@import "link.less";\n', "outside the folders")
+        self.assert_refused(f'@import (inline) "{(self.outside / "secret.less").as_posix()}";\n', "outside the folders")
+
+    def test_data_uri_does_not_embed_files_outside_the_allowed_folders(self):
+        (self.outside / "secret.txt").write_text("TOP-SECRET-VALUE\n", encoding="utf-8")
+        target = (self.outside / "secret.txt").as_posix()
+        css = self.compile(f'.a {{ background: data-uri("text/plain;base64", "{target}"); }}\n')
+        self.assertNotIn("VE9QLVNFQ1JFVC1WQUxVRQ", css)  # base64 of the secret
+        self.assertNotIn("TOP-SECRET-VALUE", css)
+
+    def test_imports_over_the_network_are_refused(self):
+        self.assert_refused('@import "https://webmail.example.com/x.less";\n', "network")
+
+    def test_a_normal_import_still_works(self):
+        (self.allowed / "ok.less").write_text("@c: #123456;\n", encoding="utf-8")
+        self.assertIn("#123456", self.compile('@import "ok.less";\n.a { color: @c; }\n'))
 
 
 if __name__ == "__main__":

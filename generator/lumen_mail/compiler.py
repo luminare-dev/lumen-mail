@@ -41,10 +41,13 @@ def compiler_command(sources: Sources, override: str | None = None, node: str | 
     return [node, str(sources.compile_script)]
 
 
-def run_compiler(command: list[str], jobs: list[CompileJob], node_modules: Path,
+def run_compiler(command: list[str], jobs: list[CompileJob], node_modules: Path, allowed_roots: list[Path],
                  timeout: int = DEFAULT_TIMEOUT) -> dict:
+    """Run the compiler. ``allowed_roots``: the only folders whose files the compile may read
+    (compile.mjs refuses everything else, and every @plugin)."""
     payload = {
         "node_modules": str(node_modules),
+        "allowed_roots": [str(r) for r in allowed_roots],
         "jobs": [{"entry": str(j.entry), "css": str(j.css), "min": str(j.min)} for j in jobs],
     }
     env = dict(os.environ)

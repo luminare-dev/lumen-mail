@@ -8,6 +8,7 @@ must stop with a message that names it instead of producing a skin that silently
 
 from __future__ import annotations
 
+import posixpath
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -65,6 +66,12 @@ MARKERS = (
 CORE_LABELS_FILE = "program/localization/en_US/labels.inc"
 LABEL_DEF_RE = re.compile(r"""\$labels\[\s*['"]([A-Za-z0-9_.-]+)['"]\s*\]""")
 
+# Elastic's LESS can be changed by the Roundcube owner. compile.mjs never runs an @plugin and reads
+# no file outside its folders; this check names the place first, so the build stops with a clear
+# message instead of a compiler error.
+PLUGIN_RE = re.compile(r"@plugin\b")
+DATA_URI_RE = re.compile(r"""data-uri\(\s*(?:(['"])[^'"]*\1\s*,\s*)?(['"])([^'"]+)\2""")
+
 VAR_DEF_RE = re.compile(r"^\s*@([A-Za-z_][\w-]*)\s*:", re.MULTILINE)
 VAR_USE_RE = re.compile(r"@@?\{?([A-Za-z_][\w-]*)\}?")
 # at-rules and LESS-internal names that look like variables
@@ -93,6 +100,24 @@ def elastic_variables(elastic_dir: Path) -> set[str]:
     for path in sorted((elastic_dir / "styles").rglob("*.less")):
         names.update(VAR_DEF_RE.findall(_strip_comments(path.read_text(encoding="utf-8", errors="replace"))))
     return names
+
+
+def unsafe_less(elastic_dir: Path) -> list[str]:
+    """@plugin rules, and data-uri() paths that leave the skin folder, in Elastic's LESS."""
+    problems: list[str] = []
+    for path in sorted((elastic_dir / "styles").rglob("*.less")):
+        rel = path.relative_to(elastic_dir).as_posix()
+        text = _strip_comments(path.read_text(encoding="utf-8", errors="replace"))
+        for m in PLUGIN_RE.finditer(text):
+            problems.append(f"skins/elastic/{rel}:{text.count(chr(10), 0, m.start()) + 1} has an @plugin rule; "
+                            "a Lumen build never runs LESS plugins")
+        for m in DATA_URI_RE.finditer(text):
+            target = m.group(3)
+            # data-uri() reads relative to the entry file in styles/ (rewriteUrls is off)
+            if target.startswith("/") or "://" in target or posixpath.normpath("styles/" + target).startswith(".."):
+                problems.append(f"skins/elastic/{rel}:{text.count(chr(10), 0, m.start()) + 1} embeds {target!r} with "
+                                "data-uri(), which is outside the skin folder")
+    return problems
 
 
 def our_variable_refs(less_dir: Path) -> list[VariableRef]:
@@ -146,6 +171,7 @@ def check_drift(rc: Roundcube, sources: Sources) -> None:
         if path.is_file() and marker not in path.read_text(encoding="utf-8", errors="replace"):
             problems.append(f"skins/elastic/{rel} no longer contains {marker!r} ({why})")
     if (elastic / "styles").is_dir():
+        problems += unsafe_less(elastic)
         known = elastic_variables(elastic)
         seen: set[tuple[str, str]] = set()
         for ref in our_variable_refs(sources.less_dir):
