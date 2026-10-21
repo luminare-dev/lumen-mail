@@ -5,15 +5,19 @@ There are two ways to install Lumen:
 | | Build on the server (recommended) | Release package |
 |---|---|---|
 | What you get | `skins/lumen` compiled from the Elastic installed on this server: an exact match | `skins/lumen` compiled in CI from the official Roundcube release named in the file name |
-| Needs | Node.js 20 or later (build only), Python 3.10 or later | nothing besides Roundcube |
+| Needs | Node.js 22 (or 20.19 or later) and npm to build the command palette once and to compile; Python 3.10 or later | nothing besides Roundcube |
 | Roundcube | any release whose Elastic passes the drift check | the same minor series as the package (1.7.x for `roundcube-1.7.3`) |
 | After a Roundcube update | rebuilt automatically by the sync units | install the matching package by hand |
 
-Roundcube support: Lumen is tested with 1.7.3 and supported on the 1.7 series. It relies on skin
-localization (Roundcube 1.4), Elastic's dark mode and the `[dark]`, `[small]` and `[small-dark]`
-logo types (1.5) and, for the url and file type checks, `public_html/static.php` (1.7, where it
-serves every skin file); Roundcube's CHANGELOG dates each feature. Releases before 1.7 are
-untested; the build's drift check stops with the exact name of anything that is missing.
+Roundcube support: Lumen is tested with Roundcube 1.7.3 (as shipped by KeyHelp 26.1.1) and
+supported on the 1.7 series. It relies on skin localization (Roundcube 1.4), Elastic's dark mode
+and the `[dark]`, `[small]` and `[small-dark]` logo types (1.5) and, for the url and file type
+checks, `public_html/static.php` (1.7, where it serves every skin file); Roundcube's CHANGELOG
+dates each feature. The command palette uses only `rcmail.command()`, `rcmail.commands`,
+`rcmail.env` (task, mailboxes, delimiter) and `rcmail.get_label()`, which are older. So 1.5 is
+the oldest release the features allow; releases before 1.7 are untested. The build's drift check
+stops with the exact name of anything that is missing, including the core labels the palette
+shows.
 
 ## On a KeyHelp server
 
@@ -22,15 +26,24 @@ that whole folder when it updates Roundcube. The sync units put `skins/lumen` ba
 seconds and rebuild it for the new release ([update safety](update-safety.md)). Run everything
 below as root.
 
-1. Get the sources and the pinned compiler:
+1. Get the sources, the locked packages and the command palette:
 
    ```bash
    git clone https://github.com/luminare-dev/lumen-mail.git /root/lumen-mail
    cd /root/lumen-mail
-   npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+   npm ci --ignore-scripts --no-audit --no-fund
+   npm run build:palette
    ```
 
-2. Install the runtime. The sync units run from this copy, never from the checkout:
+   `npm ci` installs the compiler and the palette's build tools (no install scripts run);
+   `build:palette` writes `palette/dist/lumen-palette.js` and checks it. On a server with little
+   free memory, start both with the `systemd-run ... choom` prefix of step 3 (they peaked at
+   147 MB and 150 MB here). Without npm's development packages, take `lumen/lumen-palette.js`
+   from the release package of the same version and pass `--palette <file>` to
+   `install-runtime`: every build includes the palette, there is no option to leave it out.
+
+2. Install the runtime (generator, sources, the palette bundle and the compiler only). The sync
+   units run from this copy, never from the checkout, and never need Vite:
 
    ```bash
    PYTHONPATH=generator python3 -m lumen_mail install-runtime --prefix /opt/lumen-mail --dry-run
@@ -77,7 +90,7 @@ The same steps, with your paths and the owner of `<roundcube>/skins` (for exampl
 
 ```bash
 git clone https://github.com/luminare-dev/lumen-mail.git && cd lumen-mail
-npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+npm ci --ignore-scripts --no-audit --no-fund && npm run build:palette
 sudo PYTHONPATH=generator python3 -m lumen_mail install-runtime --prefix /opt/lumen-mail
 sudo /opt/lumen-mail/bin/lumen-mail install --roundcube /var/www/roundcube
 ```
@@ -120,8 +133,10 @@ sudo tar -xzf lumen-<version>-roundcube-1.7.3.tar.gz -C /var/www/roundcube/skins
 sudo chown -R www-data:www-data /var/www/roundcube/skins/lumen
 ```
 
-Then select the skin as above. The compiled CSS in the package is an adaptation of Roundcube's
-Elastic skin and is licensed under CC BY-SA 3.0. For another release of the same series the
+Then select the skin as above. The package includes the command palette
+(`lumen/lumen-palette.js`, with React's MIT licence in `lumen/THIRD_PARTY_NOTICES.md`). The
+compiled CSS in the package is an adaptation of Roundcube's Elastic skin and is licensed under
+CC BY-SA 3.0. For another release of the same series the
 stamp names a different Elastic; `verify --allow-mismatch` accepts that. With a runtime installed,
 `lumen-mail install --from <folder> --allow-mismatch` installs the extracted folder with backups
 and a last good copy.
@@ -139,7 +154,9 @@ curl -s https://webmail.example.com/ | grep -o 'skins/lumen/styles/styles.min.cs
 ```
 
 Once Lumen is the system skin, the login page links `skins/lumen/styles/styles.min.css` (with
-Roundcube's `?s=` cache-buster), shows the Luminare logo and the product name.
+Roundcube's `?s=` cache-buster), shows the Luminare logo and the product name. After login, every
+page loads `skins/lumen/lumen-palette.js`: press Ctrl+K (Cmd+K on a Mac) or choose **Jump to** in
+the menu.
 
 ## Roll back
 
@@ -157,10 +174,11 @@ Roundcube's `?s=` cache-buster), shows the Luminare logo and the product name.
 
 ## Building without installing
 
-`build` and `verify` work on any folder, without root and without touching the Roundcube tree:
+`build` and `verify` work on any folder, without root and without touching the Roundcube tree
+(after `npm run build:palette`, or with `--palette <file>`):
 
 ```bash
-PYTHONPATH=generator python3 -m lumen_mail build --roundcube /var/www/roundcube --out /tmp/lumen --no-palette
+PYTHONPATH=generator python3 -m lumen_mail build --roundcube /var/www/roundcube --out /tmp/lumen
 PYTHONPATH=generator python3 -m lumen_mail verify /tmp/lumen --roundcube /var/www/roundcube
 ```
 

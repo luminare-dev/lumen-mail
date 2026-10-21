@@ -17,11 +17,12 @@ Without the units: `lumen-mail install --roundcube <root>` (or `build` and `veri
 ## After a lumen-mail update
 
 1. Read the changelog entries between your version and the new one.
-2. Update the checkout and the pinned compiler:
+2. Update the checkout, the locked packages and the command palette:
 
    ```bash
    cd /root/lumen-mail && git pull --ff-only
-   npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+   npm ci --ignore-scripts --no-audit --no-fund
+   npm run build:palette
    ```
 
 3. Replace the runtime (atomic; the old one is removed afterwards):
@@ -36,4 +37,6 @@ Without the units: `lumen-mail install --roundcube <root>` (or `build` and `veri
 
 ## Version notes
 
-No release has needed manual steps yet.
+No release has needed manual steps yet. From the first release on, every build includes the
+command palette: `install-runtime` and `install` stop if `palette/dist/lumen-palette.js` is
+missing (step 2 builds it).

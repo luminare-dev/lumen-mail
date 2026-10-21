@@ -16,7 +16,8 @@
 # lumen-mail
 
 A modern Luminare skin for Roundcube Webmail: a real Roundcube skin called **Lumen** that extends
-Elastic, compiled on your server from the Elastic sources installed there.
+Elastic, compiled on your server from the Elastic sources installed there, with a Ctrl+K command
+palette for folders, settings and actions.
 
 [![ci](https://github.com/luminare-dev/lumen-mail/actions/workflows/ci.yml/badge.svg)](https://github.com/luminare-dev/lumen-mail/actions/workflows/ci.yml)
 [![release](https://img.shields.io/github/v/release/luminare-dev/lumen-mail?sort=semver)](https://github.com/luminare-dev/lumen-mail/releases)
@@ -32,13 +33,42 @@ small component layer, one wrapper template and a generator that compiles the sk
 whatever Elastic is installed, checks first that everything it relies on still exists, and stops
 with the exact name of what changed if an update moved something.
 
+## Screenshots
+
+<!-- Screenshot slots, filled at the first release (docs/screenshots/, example data only):
+     login page (light), mail view (dark), the command palette (light), settings at 360 px (dark).
+     The gallery's skin previews (docs/development.md) render the same views locally. -->
+
+Screenshots follow with the first release; until then the [gallery](#gallery) renders the skin's
+mail, settings and login views locally.
+
+## Features
+
+- **A real Roundcube skin**, `skins/lumen`, that extends Elastic: every layout, touch and phone
+  behaviour of Elastic stays, with Luminare's colours, the Sora typeface, an 8 px grid, rounded
+  surfaces with subtle borders, a Night task rail and clear focus rings.
+- **Light and dark mode**, both with Elastic's own switch; every text and UI colour pair passes
+  WCAG 2.2 AA ([contrast table](docs/contrast.md)); prefers-reduced-motion is respected.
+- **Command palette:** Ctrl+K (Cmd+K on a Mac) or **Jump to** in the menu opens a search over
+  folders, settings pages and sections, tasks (plugin tasks included) and actions (compose, check
+  mail, search, dark mode, about, logout). Fuzzy search ignores case and accents; it is a modal
+  ARIA dialog with a listbox, keyboard-only friendly, in the user's language through Roundcube's
+  labels, and right-to-left in right-to-left languages. It reads everything from the page, sends
+  nothing anywhere and stores nothing.
+- **Luminare branding:** the logo on the login page and in the menu (an admin's `skin_logo`
+  still wins), favicon, theme colours and the skin chooser thumbnail.
+- **Safe after Roundcube updates:** the build is checked against the installed Elastic first,
+  and the optional systemd units restore and rebuild the skin by themselves.
+- **No Roundcube file in this repository**: the stylesheets are compiled where the skin is
+  installed, from the Elastic that is there ([why](#how-it-works)).
+
 ## Quickstart
 
-On the server that runs Roundcube (as root; Node.js 20+ and Python 3.10+):
+On the server that runs Roundcube (as root; Node.js 22 or 20.19+, npm and Python 3.10+):
 
 ```bash
 git clone https://github.com/luminare-dev/lumen-mail.git && cd lumen-mail
-npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+npm ci --ignore-scripts --no-audit --no-fund && npm run build:palette
 PYTHONPATH=generator python3 -m lumen_mail install-runtime --prefix /opt/lumen-mail
 /opt/lumen-mail/bin/lumen-mail install --roundcube /var/www/roundcube
 ```
@@ -48,9 +78,14 @@ Then select it: `$config['skin'] = 'lumen';` in `config/config.inc.php` for ever
 **Configuration → Webmail → Interface skin**. The systemd units in `contrib/systemd/` restore and
 rebuild the skin after Roundcube updates.
 
-Without Node: each release has `lumen-<version>-roundcube-<version>.tar.gz` (and `.zip`) to
-extract into `<roundcube>/skins/`. Both ways, the KeyHelp commands, verification and rollback:
-[docs/install.md](docs/install.md).
+Two ways to install, both described with the KeyHelp commands, verification and rollback in
+[docs/install.md](docs/install.md):
+
+- **Build on the server (recommended):** the commands above. The skin is compiled against the
+  exact Elastic of your Roundcube and rebuilt after updates.
+- **Release package:** each release has `lumen-<version>-roundcube-<version>.tar.gz` (and
+  `.zip`), built in CI against that official Roundcube release, to extract into
+  `<roundcube>/skins/`. No Node needed; it fits the same Roundcube minor series.
 
 ## How it works
 
@@ -72,8 +107,17 @@ flowchart LR
   component layer after it, resolves every `url()` the way Roundcube looks up skin files (Lumen
   first, then `../../elastic/…`), adds a cache-buster, checks that each target exists and is
   served, and adds the licence banner.
-- **One wrapper template.** `templates/includes/footer.html` adds Lumen's scripts and includes
-  Elastic's footer with `skinpath="skins/elastic"`; no Elastic template is copied.
+- **One wrapper template.** `templates/includes/footer.html` adds Lumen's scripts and the labels
+  the palette needs, then includes Elastic's footer with `skinpath="skins/elastic"`; no Elastic
+  template is copied.
+- **The command palette is a skin asset.** Vite builds it once into `lumen-palette.js` (React in
+  a shadow root, styled by the skin's tokens); every build copies it into `skins/lumen/` and there
+  is no option to leave it out. Its items run through `rcmail.command()` or Elastic's own
+  buttons, so Roundcube's checks apply ([ADR 0010](docs/adr/0010-a-command-palette-as-a-skin-asset.md)).
+- **Why no Elastic file is in the repository.** Elastic is licensed under CC BY-SA 3.0; a copy
+  of its templates or LESS would make this repository an adaptation and go stale with the next
+  Roundcube release. Lumen only names Elastic's variables, selectors and templates, and the
+  generator compiles against the copy every Roundcube installation already has.
 - **Safe after updates.** `lumen-build.stamp` records the Roundcube version, a digest of Elastic's
   LESS and templates and the sha256 of every file, so `verify` knows when a rebuild is due.
 - **Restore at once, rebuild later.** KeyHelp deletes the whole Roundcube folder on every
@@ -95,6 +139,7 @@ The decisions behind this project are recorded as short ADRs in [docs/adr/](docs
 - [ADR 0007: Sora as WOFF, and a stamp file that is not served](docs/adr/0007-sora-as-woff-and-a-stamp-that-is-not-served.md)
 - [ADR 0008: Restore at once, rebuild later](docs/adr/0008-restore-at-once-rebuild-later.md)
 - [ADR 0009: A release package built against a pinned Roundcube](docs/adr/0009-a-release-package-built-against-a-pinned-roundcube.md)
+- [ADR 0010: A command palette as a skin asset](docs/adr/0010-a-command-palette-as-a-skin-asset.md)
 
 What Lumen changes in Elastic, and why, is listed in
 [docs/elastic-inventory.md](docs/elastic-inventory.md); every text and UI colour pair is in
@@ -109,14 +154,14 @@ release by hand. lumen-mail sits in between: Elastic's structure, our look, rebu
 
 | Component | Tested with | Supported |
 |---|---|---|
-| Roundcube Webmail (Elastic skin) | 1.7.3 (drift check, builds, a scratch copy served with `php -S`) | the 1.7 series; the features Lumen uses exist since 1.5 (see [install](docs/install.md)), older releases are untested |
+| Roundcube Webmail (Elastic skin) | 1.7.3, as shipped by KeyHelp 26.1.1 (drift check, builds, a scratch copy served with `php -S`, pages rendered by Roundcube's template engine) | the 1.7 series; the features Lumen uses exist since 1.5, the oldest release they allow (see [install](docs/install.md)); older releases are untested |
 | systemd (sync units, optional) | 255 (`systemd-analyze verify` and `security`; not yet started on a server) | path units with `PathChanged=` and `StateDirectory=` |
-| Node.js (build only) | 22.23 on this server; the CI skin job uses 22 | 20 or later (`engines` in package.json) |
+| Node.js (build only) | 22.23 on this server; CI uses 22 | 22.12 or later, or 20.19 or later (Vite 8; the LESS compile alone runs on any Node 20) |
 | Python (generator) | 3.12 | 3.12; the code needs 3.10 or later and only the standard library |
 | Browsers | as Elastic | the last two versions of Chrome, Edge, Firefox and Safari |
 
-Fixes go into the latest minor release only. See the
-[security policy](https://github.com/luminare-dev/.github/blob/main/SECURITY.md) for reporting.
+Fixes go into the latest minor release only. See the [security policy](SECURITY.md) for
+reporting.
 
 ## Limitations
 
@@ -129,6 +174,10 @@ Fixes go into the latest minor release only. See the
 - Roundcube does not set `dir="rtl"` for Elastic; Lumen's own rules use logical properties, but
   Elastic's layout stays left-to-right.
 - Message bodies keep their senders' colours.
+- The command palette appears on pages after login only, not on the login, print and error pages,
+  in frames or in the external compose window. Its folder list covers the folders Roundcube
+  lists in the mail task; elsewhere it offers Inbox.
+- The palette bundles React: 72.1 KB gzip, of which React and React DOM are 65.9 KB.
 - Only Roundcube 1.7.3 has been tested.
 - As the system skin, Lumen depends on `skins/lumen` being present. An update that removes the
   Roundcube folder (KeyHelp does) shows error pages until the sync unit has restored it; without
@@ -153,18 +202,37 @@ Fixes go into the latest minor release only. See the
 | Contrast | 58 pairs pass WCAG 2.2 AA in light and dark mode; lowest 3.43:1 (light) and 3.17:1 (dark), both UI parts with a 3:1 minimum | `python3 scripts/contrast.py`, 2026-10-21 |
 | Font | Sora variable font 60,684 bytes as WOFF (TTF 111,400) | `scripts/build_font.py`, 2026-10-21 |
 
+## Gallery
+
+The gallery is a static React app that shows the design system: every colour role in both
+modes, the contrast of every pair (computed in the browser), the Sora type scale, shape and
+motion, and the real command palette on a mocked Roundcube, with light/dark, LTR/RTL and
+English/German switches.
+
+```bash
+npm ci --ignore-scripts --no-audit --no-fund
+npm run gallery                                   # dev server
+npm run build:gallery                             # gallery/dist, served from any folder
+LUMEN_GALLERY_SKINS=/path/to/roundcube/skins npm run gallery
+```
+
+With `LUMEN_GALLERY_SKINS` pointing at a folder that holds a built `lumen/` next to its
+`elastic/` (for example a test copy of Roundcube after `lumen-mail install`), it adds preview
+pages (mail, settings, login) styled by the built skin, at 1280 or 360 pixels. CI keeps the
+gallery without a skin as the `gallery` artifact. Details: [docs/development.md](docs/development.md#the-gallery).
+
 ## Documentation and links
 
 - [Installation](docs/install.md) · [Update safety](docs/update-safety.md) ·
   [Command reference](docs/cli.md) · [Configuration](docs/configuration.md) ·
   [Upgrade](docs/upgrade.md) · [Troubleshooting](docs/troubleshooting.md) ·
   [Runbook](docs/runbook.md) · [Elastic inventory](docs/elastic-inventory.md) ·
-  [Contrast](docs/contrast.md) · [ADRs](docs/adr/)
+  [Contrast](docs/contrast.md) · [Development](docs/development.md) · [ADRs](docs/adr/)
 - [Changelog](CHANGELOG.md) and [releases](https://github.com/luminare-dev/lumen-mail/releases)
   (each release has `SHA256SUMS` and a build provenance attestation)
-- [Contributing](https://github.com/luminare-dev/.github/blob/main/CONTRIBUTING.md) ·
+- [Contributing](CONTRIBUTING.md) ·
   [Code of conduct](https://github.com/luminare-dev/.github/blob/main/CODE_OF_CONDUCT.md) ·
-  [Security](https://github.com/luminare-dev/.github/blob/main/SECURITY.md) ·
+  [Security](SECURITY.md) ·
   [Support](https://github.com/luminare-dev/.github/blob/main/SUPPORT.md)
 - Project page: <https://luminare.tech/open-source/lumen-mail/>
 
@@ -183,7 +251,9 @@ named only because the skin can be selected in KeyHelp's webmail settings.
 [NOTICE](NOTICE)). The stylesheets the generator compiles on your server are an adaptation of
 Roundcube's Elastic skin and are licensed under
 [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/), like Elastic; the installed
-skin's `README.md` credits Elastic's authors. Sora is under the SIL Open Font License 1.1.
+skin's `README.md` credits Elastic's authors. Sora is under the SIL Open Font License 1.1. The
+command palette and the gallery bundle React, React DOM and scheduler (MIT, Copyright (c) Meta
+Platforms, Inc. and affiliates; [third-party notices](THIRD_PARTY_NOTICES.md)).
 
 <!-- byline:studio -->
 *a [Luminare Development](https://luminare.tech/open-source/lumen-mail/) open-source project*

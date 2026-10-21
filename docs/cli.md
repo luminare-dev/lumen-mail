@@ -34,7 +34,7 @@ option. Commands that write accept `--dry-run`, which prints the plan and writes
 | `--settle S` | 5 (`$LUMEN_MAIL_SETTLE`) | `sync`: quiet seconds before a rebuild |
 | `--min-available-mb N` | 400 (`$LUMEN_MAIL_MIN_AVAILABLE_MB`) | `sync`: MemAvailable needed to start the compiler; 0 turns the check off |
 | `--rebuild` | off | `sync`: rebuild even if current |
-| `--no-palette`, `--require-palette`, `--palette FILE` | use `palette/dist/lumen-palette.js` when it exists | building commands, `check`, `status` |
+| `--palette FILE` | `<source>/palette/dist/lumen-palette.js` (`$LUMEN_MAIL_PALETTE`); every build includes the palette and stops if the file is missing, there is no option to leave it out | building commands, `check`, `status`, `install-runtime` |
 | `--source PATH`, `--node-modules PATH` | this checkout or runtime (`$LUMEN_MAIL_SOURCE`, `$LUMEN_MAIL_NODE_MODULES`) | all |
 | `--node PATH`, `--compiler CMD` | `node` from `PATH` (`$LUMEN_MAIL_NODE`, `$LUMEN_MAIL_COMPILER`) | building commands |
 | `--work-dir PATH` | `$TMPDIR` (`build`: next to `--out`) | building commands |

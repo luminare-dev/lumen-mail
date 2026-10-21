@@ -21,6 +21,25 @@ and line. `cannot load the compiler` means `node_modules` is missing.
 npm ci --omit=dev --ignore-scripts
 ```
 
+## `error: the command palette bundle .../lumen-palette.js is missing`
+
+**Cause:** every build includes the command palette, and the sources (or the runtime) have no
+built bundle.
+
+**Fix:** in the checkout, `npm ci --ignore-scripts --no-audit --no-fund && npm run build:palette`,
+then `install-runtime` again. Or use the `lumen/lumen-palette.js` of the release package of the
+same version: `--palette <file>`. A sync run keeps the active build until the bundle is back.
+
+## Ctrl+K does nothing
+
+- The palette is not on the login page, on print and error pages, in frames and in the external
+  compose window. Use it on a page after login, or choose **Jump to** in the menu.
+- Inside a text area, the HTML editor and other editable text, Ctrl+K belongs to the editor (in
+  the HTML editor it inserts a link). Click outside the editor first.
+- On a Mac the shortcut is Cmd+K.
+- `skins/lumen/lumen-palette.js` must load: the browser's developer tools show the request. A
+  user with another skin in their preferences does not get it.
+
 ## The page looks like plain Elastic
 
 **Cause:** Lumen is not the active skin, `devel_mode` is on, or the browser still has the old
