@@ -3,13 +3,16 @@
 1. Drift check: every Elastic file, marker and variable Lumen relies on is still there.
 2. Mirror tree in a temporary directory next to the output:
        <tmp>/skins/elastic  -> symlink to <roundcube>/skins/elastic (read-only use)
-       <tmp>/skins/lumen/   our static files, our LESS and two entry files
-   The LESS compiler rewrites every url() relative to the entry (skins/lumen/styles/), so a
-   reference into Elastic comes out as ../../elastic/fonts/... and is valid once the skin sits
-   at <roundcube>/skins/lumen, next to Elastic.
-3. Compile styles.css/.min.css and embed.css/.min.css; add a ?v=<sha256 prefix> cache-buster
-   to every local url() (Roundcube serves skin files with a one-month Expires header), check
-   that each target exists and is a type static.php serves, and add the licence banner.
+       <tmp>/skins/lumen/   our static files, our LESS and two entry files in styles/
+   less runs with rewriteUrls "off", like Elastic's own build: Elastic writes every url()
+   relative to its styles/ folder, and data-uri() reads files relative to the entry. For the
+   compile only, Elastic's images are linked into <tmp>/skins/lumen/images so that its
+   data-uri() icons are embedded as in Elastic's own stylesheet.
+3. Compile styles.css/.min.css and embed.css/.min.css. Each local url() is then resolved the way
+   Roundcube looks up skin files: in skins/lumen first, then in skins/elastic (rewritten to
+   ../../elastic/...). It gets a ?v=<sha256 prefix> cache-buster (Roundcube serves skin files
+   with a one-month Expires header), its target must exist and be a type static.php serves, and
+   every file gets the licence banner.
 4. Write the stamp (lumen-build.stamp), move the result into place and run verify on it.
 """
 
@@ -18,6 +21,7 @@ from __future__ import annotations
 import datetime as _dt
 import json
 import os
+import posixpath
 import shutil
 import string
 import tempfile
@@ -111,8 +115,16 @@ def build(opts: BuildOptions) -> BuildResult:
             entry = styles / f"lumen-entry-{out_name}.less"
             entry.write_text(entry_text, encoding="utf-8")
             jobs.append(CompileJob(entry, styles / f"{out_name}.css", styles / f"{out_name}.min.css"))
+        helpers = link_elastic_images(rc.elastic_dir, skin)
         command = compiler_command(sources, opts.compiler, opts.node)
-        result = run_compiler(command, jobs, sources.node_modules)
+        try:
+            result = run_compiler(command, jobs, sources.node_modules)
+        finally:
+            for link in helpers:
+                link.unlink()
+        for res in result.get("results", []):
+            for warning in res.get("warnings", []):
+                info(f"  compiler warning ({Path(res.get('entry', '?')).name}): {warning}", opts.quiet)
         static_types = rc.static_types()
         for rel in CSS_OUTPUTS:
             path = skin / rel
@@ -176,9 +188,28 @@ def assemble_static(sources: Sources, skin: Path, palette: bool, lumen_version: 
         shutil.copy2(sources.palette, skin / PALETTE_FILE)
 
 
+def link_elastic_images(elastic: Path, skin: Path) -> list[Path]:
+    """Temporarily link Elastic's images into the mirror skin, for data-uri() during the compile."""
+    links: list[Path] = []
+    src = elastic / "images"
+    if not src.is_dir():
+        return links
+    for rel in walk_files(src):
+        target = skin / "images" / rel
+        if target.exists() or target.is_symlink():
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        os.symlink(src / rel, target)
+        links.append(target)
+    return links
+
+
 def finalize_css(css: str, rel: str, mirror: Path, static_types: set[str] | None) -> str:
-    """Add cache-busters to local url()s and fail on any that would not work once installed."""
-    base = f"skins/{SKIN_NAME}/" + os.path.dirname(rel)
+    """Resolve each local url() (Lumen first, then Elastic), add the cache-buster, check it."""
+    folder = posixpath.dirname(rel)
+    lumen_base = f"skins/{SKIN_NAME}/{folder}"
+    elastic_base = f"skins/{PARENT_SKIN}/{folder}"
+    root = mirror.parent
     problems: list[str] = []
 
     def fix(url: CssUrl) -> str | None:
@@ -188,19 +219,20 @@ def finalize_css(css: str, rel: str, mirror: Path, static_types: set[str] | None
         if not url.is_local:
             return None
         path, query, frag = url.parts()
-        target = resolve(base, path)
-        if not (target.startswith(f"skins/{SKIN_NAME}/") or target.startswith(f"skins/{PARENT_SKIN}/")):
-            problems.append(f"{rel}: url({url.value}) resolves to {target}, outside skins/{SKIN_NAME} and skins/{PARENT_SKIN}")
+        ours, theirs = resolve(lumen_base, path), resolve(elastic_base, path)
+        if ours.startswith(f"skins/{SKIN_NAME}/") and (root / ours).is_file():
+            target, new_path = ours, path
+        elif theirs.startswith(f"skins/{PARENT_SKIN}/") and (root / theirs).is_file():
+            target, new_path = theirs, posixpath.relpath(theirs, lumen_base)
+        else:
+            problems.append(f"{rel}: url({url.value}) exists neither as {ours} nor as {theirs}")
             return None
-        file = mirror.parent / target
-        if not file.is_file():
-            problems.append(f"{rel}: url({url.value}) points to {target}, which does not exist")
-            return None
+        file = root / target
         ext = file.suffix.lstrip(".").lower()
         if static_types is not None and ext not in static_types:
             problems.append(f"{rel}: url({url.value}): Roundcube's static.php does not serve .{ext} files")
         query = "&".join([q for q in query.split("&") if q and not q.startswith("v=")] + [f"v={short_hash(file)}"])
-        return path + "?" + query + ("#" + frag if frag else "")
+        return new_path + "?" + query + ("#" + frag if frag else "")
 
     out = rewrite_urls(css, fix)
     if problems:

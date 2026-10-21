@@ -52,8 +52,11 @@ def make_roundcube(base: Path, version: str = FAKE_VERSION, static_php: bool = T
     write(el / "styles/global.less",
           "@import (reference) \"variables\";\n@import (reference) \"mixins\";\n"
           "@font-face { font-family: Fake; src: url(\"../fonts/fake.woff2\") format(\"woff2\"); }\n")
-    write(el / "styles/styles.less", "@import \"global\";\n.fake { background: url('../images/fake.svg'); }\n"
+    write(el / "styles/styles.less", "@import \"global\";\n@import \"widgets/buttons\";\n"
+                                     ".fake { background: url('../images/fake.svg'); }\n"
                                      "& when (true) { @import \"dark\"; }\n")
+    # like Elastic: a url in styles/widgets/ is written relative to styles/, not to widgets/
+    write(el / "styles/widgets/buttons.less", ".fake-btn { background: url(\"../images/fake-icon.svg\"); }\n")
     write(el / "styles/dark.less", "html.dark-mode .fake { color: red; }\n")
     write(el / "styles/embed.less", "@import \"global\";\n.fake-embed { color: blue; }\n")
     write(el / "templates/includes/footer.html",
@@ -67,6 +70,7 @@ def make_roundcube(base: Path, version: str = FAKE_VERSION, static_php: bool = T
     write(el / "templates/mail.html", "<roundcube:include file=\"includes/footer.html\" />\n")
     write(el / "images/logo.svg", "<svg xmlns=\"http://www.w3.org/2000/svg\"/>\n")
     write(el / "images/fake.svg", "<svg xmlns=\"http://www.w3.org/2000/svg\"><rect/></svg>\n")
+    write(el / "images/fake-icon.svg", "<svg xmlns=\"http://www.w3.org/2000/svg\"><circle/></svg>\n")
     write(el / "fonts/fake.woff2", b"wOF2-fake-font")
     write(el / "ui.js", "// fake ui\n")
     return rc

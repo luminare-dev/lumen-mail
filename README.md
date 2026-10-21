@@ -64,8 +64,9 @@ flowchart LR
   uses Elastic's templates and scripts for everything Lumen does not have.
 - **Compiled on the server.** The build points a temporary mirror tree at the installed
   `skins/elastic`, compiles Elastic's `styles.less` with Lumen's tokens, variable overrides and
-  component layer after it, adds a cache-buster to every `url()`, checks that each target exists
-  and is served, and adds the licence banner.
+  component layer after it, resolves every `url()` the way Roundcube looks up skin files (Lumen
+  first, then `../../elastic/…`), adds a cache-buster, checks that each target exists and is
+  served, and adds the licence banner.
 - **One wrapper template.** `templates/includes/footer.html` adds Lumen's scripts and includes
   Elastic's footer with `skinpath="skins/elastic"`; no Elastic template is copied.
 - **Safe after updates.** `lumen-build.stamp` records the Roundcube version, a digest of Elastic's
@@ -96,8 +97,8 @@ release by hand. lumen-mail sits in between: Elastic's structure, our look, rebu
 
 | Component | Tested with | Supported |
 |---|---|---|
-| Roundcube Webmail (Elastic skin) | 1.7.3 | the build runs on any Roundcube whose Elastic passes the drift check; tested only with 1.7.3 |
-| Node.js (build only) | 22.23 | 20 or later |
+| Roundcube Webmail (Elastic skin) | 1.7.3 (drift check and stand-in builds against its Elastic) | any Roundcube whose Elastic passes the drift check; only 1.7.3 has been checked |
+| Node.js (build only) | 22.23 on this server; the CI skin job uses 22 | 20 or later (`engines` in package.json) |
 | Python (generator) | 3.12 | 3.12; the code needs 3.10 or later and only the standard library |
 | Browsers | as Elastic | the last two versions of Chrome, Edge, Firefox and Safari |
 
@@ -121,7 +122,8 @@ Fixes go into the latest minor release only. See the
 
 | What | Value | How it was measured |
 |---|---|---|
-| Generator tests | 30 unit tests pass | `python3 -m unittest discover -s tests` with the stand-in compiler, 2026-10-21 |
+| Generator and contrast tests | 38 tests pass (33 generator, 5 contrast) | `python3 -m unittest discover -s tests` with the stand-in compiler, 2026-10-21 |
+| Drift check | passes against Roundcube 1.7.3's Elastic: 161 Elastic variables set, 3 read, every file and marker present | `lumen_mail.elastic.check_drift`, 2026-10-21 |
 | Contrast | 58 pairs pass WCAG 2.2 AA in light and dark mode; lowest 3.43:1 (light) and 3.17:1 (dark), both UI parts with a 3:1 minimum | `python3 scripts/contrast.py`, 2026-10-21 |
 | Font | Sora variable font 60,684 bytes as WOFF (TTF 111,400) | `scripts/build_font.py`, 2026-10-21 |
 

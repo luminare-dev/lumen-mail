@@ -3,10 +3,15 @@
 //
 // Reads one job as JSON on stdin:
 //   {"node_modules": "/path/to/node_modules", "jobs": [{"entry": "...less", "css": "...css", "min": "...min.css"}]}
-// compiles every entry with the pinned "less" package (urls rewritten relative to the entry, so
-// the mirror tree decides where they point), minifies the result with "clean-css" and writes
-// both files. Prints one JSON line on stdout: {"ok": true, "versions": {...}, "results": [...]}
+// compiles every entry with the pinned "less" package, minifies the result with "clean-css" and
+// writes both files. Prints one JSON line on stdout: {"ok": true, "versions": {...}, "results": [...]}
 // or {"ok": false, "error": "...", "file": "...", "line": N} (exit code 1).
+//
+// url() values are NOT rewritten (rewriteUrls "off", as in Elastic's own build): Elastic writes
+// every url relative to its styles/ folder, also inside styles/widgets/, and data-uri() reads
+// files relative to the entry. The Python side resolves each url afterwards (Lumen first, then
+// Elastic, like Roundcube's own skin lookup). less warnings (for example a skipped data-uri) are
+// returned in "warnings".
 //
 // No network access, no plugins, no inline JavaScript in LESS (javascriptEnabled stays off).
 
@@ -50,8 +55,12 @@ const minifier = new CleanCSS({
     returnPromise: false,
 });
 
+const lessWarnings = [];
+less.logger.addListener({ warn: (msg) => lessWarnings.push(String(msg)), error: (msg) => lessWarnings.push(String(msg)) });
+
 const results = [];
 for (const item of job.jobs || []) {
+    const warningsBefore = lessWarnings.length;
     let source;
     try {
         source = readFileSync(item.entry, 'utf8');
@@ -62,7 +71,7 @@ for (const item of job.jobs || []) {
     try {
         output = await less.render(source, {
             filename: path.resolve(item.entry),
-            rewriteUrls: 'all',
+            rewriteUrls: 'off',
             javascriptEnabled: false,
         });
     } catch (e) {
@@ -81,7 +90,7 @@ for (const item of job.jobs || []) {
         css_bytes: Buffer.byteLength(output.css),
         min_bytes: Buffer.byteLength(minified.styles),
         imports: output.imports,
-        warnings: minified.warnings || [],
+        warnings: lessWarnings.slice(warningsBefore).concat(minified.warnings || []),
     });
 }
 

@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 """Stand-in for compile.mjs in the tests (same JSON protocol, no Node needed).
 
-For each job it follows the @import lines of the entry (relative paths, like LESS), collects
-every url(...) and rewrites it relative to the entry's folder, as less does with
-rewriteUrls: 'all'. The output is one rule per url plus a marker rule. Symlinks are not
-resolved, like less. Set STUB_COMPILER_FAIL=1 to get a compile error back.
+For each job it follows the @import lines of the entry (relative paths, like LESS) and collects
+every url(...) as written, as less does with rewriteUrls "off". The output is one rule per url
+plus a marker rule. Symlinks are not resolved, like less. Set STUB_COMPILER_FAIL=1 to get a
+compile error back.
 """
 
 from __future__ import annotations
 
 import json
 import os
-import posixpath
 import re
 import sys
 
@@ -19,7 +18,7 @@ IMPORT_RE = re.compile(r"""@import\s+(?:\([^)]*\)\s*)?["']([^"']+)["']\s*;""")
 URL_RE = re.compile(r"""url\(\s*(["']?)([^"')]+)\1\s*\)""")
 
 
-def collect(path: str, seen: set[str], urls: list[str], entry_dir: str) -> None:
+def collect(path: str, seen: set[str], urls: list[str]) -> None:
     path = os.path.normpath(path)
     if path in seen or not os.path.isfile(path):
         return
@@ -27,17 +26,12 @@ def collect(path: str, seen: set[str], urls: list[str], entry_dir: str) -> None:
     text = open(path, encoding="utf-8").read()
     here = os.path.dirname(path)
     for m in URL_RE.finditer(text):
-        value = m.group(2)
-        if re.match(r"^[a-z]+:", value) or value.startswith(("/", "#")):
-            urls.append(value)
-            continue
-        target = os.path.normpath(os.path.join(here, value))
-        urls.append(posixpath.normpath(os.path.relpath(target, entry_dir)))
+        urls.append(m.group(2))
     for m in IMPORT_RE.finditer(text):
         name = m.group(1)
         if not name.endswith(".less"):
             name += ".less"
-        collect(os.path.join(here, name), seen, urls, entry_dir)
+        collect(os.path.join(here, name), seen, urls)
 
 
 def main() -> int:
@@ -49,7 +43,7 @@ def main() -> int:
     results = []
     for item in job["jobs"]:
         urls: list[str] = []
-        collect(item["entry"], set(), urls, os.path.dirname(item["entry"]))
+        collect(item["entry"], set(), urls)
         rules = "".join(f'.u{i} {{ background: url("{u}"); }}\n' for i, u in enumerate(urls))
         css = f"/* stub build of {os.path.basename(item['entry'])} */\n.stub {{ color: #0a1224; }}\n{rules}"
         with open(item["css"], "w", encoding="utf-8") as fh:

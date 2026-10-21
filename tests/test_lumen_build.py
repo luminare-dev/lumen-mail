@@ -91,6 +91,15 @@ class BuildTest(FakeTreeCase):
         fake_font = self.rc / "skins/elastic/fonts/fake.woff2"
         self.assertIn(f"../../elastic/fonts/fake.woff2?v={short_hash(fake_font)}", urls)
         self.assertIn(f"../../elastic/images/fake.svg?v={short_hash(self.rc / 'skins/elastic/images/fake.svg')}", urls)
+        # written relative to styles/ inside styles/widgets/, as Elastic does
+        icon = self.rc / "skins/elastic/images/fake-icon.svg"
+        self.assertIn(f"../../elastic/images/fake-icon.svg?v={short_hash(icon)}", urls)
+
+    def test_elastic_images_are_linked_only_during_the_compile(self):
+        out = self.build().out
+        self.assertFalse([p for p in out.rglob("*") if p.is_symlink()])
+        images = sorted(p.name for p in (out / "images").iterdir())
+        self.assertEqual(images, sorted(p.name for p in (ROOT / "skin/images").iterdir()))
 
     def test_palette_is_required_unless_disabled(self):
         sources = Sources.locate(ROOT, palette=self.tmp / "nowhere.js")
@@ -134,6 +143,26 @@ class BuildTest(FakeTreeCase):
     def test_no_temporary_files_are_left(self):
         self.build(out_name="clean/lumen")
         self.assertEqual(sorted(p.name for p in (self.tmp / "clean").iterdir()), ["lumen"])
+
+    def test_the_roundcube_tree_is_only_read(self):
+        def snapshot() -> dict[str, tuple[str, float]]:
+            return {p.relative_to(self.rc).as_posix(): (sha256_file(p), p.stat().st_mtime)
+                    for p in self.rc.rglob("*") if p.is_file()}
+
+        before = snapshot()
+        self.build()
+        self.assertEqual(snapshot(), before)
+
+    def test_without_static_php_the_type_check_is_skipped(self):
+        (self.rc / "public_html/static.php").unlink()
+        out = self.build().out
+        self.assertIsNone(Roundcube.at(self.rc).static_types())
+        self.assertEqual(verify(out, Roundcube.at(self.rc), Sources.locate(ROOT)), [])
+
+    def test_not_a_roundcube_root(self):
+        with self.assertRaises(LumenError) as ctx:
+            Roundcube.at(self.tmp)
+        self.assertIn("program/include/iniset.php is missing", ctx.exception.render())
 
 
 class DriftTest(FakeTreeCase):

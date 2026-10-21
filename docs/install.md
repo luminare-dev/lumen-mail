@@ -1,7 +1,7 @@
 # Installation
 
-Lumen is built on the server that runs Roundcube, from the Elastic skin installed there. Tested on
-Ubuntu 24.04 with Roundcube 1.7.3, Node 22.23 and Python 3.12 (2026-10-21).
+Lumen is built on the server that runs Roundcube, from the Elastic skin installed there. The
+commands below are written for Ubuntu 24.04 with Roundcube 1.7.3, Node 22 and Python 3.12.
 
 ## Requirements
 
@@ -43,7 +43,7 @@ If `skins_allowed` is set in the Roundcube configuration, add `lumen` to it.
 
 ## Building on a small server
 
-The compile needs about 200 to 300 MB of memory for a few seconds. On a busy host, cap it:
+The compile runs Node for a short time. On a busy host, cap its memory and priority:
 
 ```bash
 NODE_OPTIONS=--max-old-space-size=320 systemd-run --scope --quiet --collect \

@@ -45,6 +45,7 @@ on resize and on colour-mode changes. It sets `layout-large|normal|small|phone` 
 
 | File | Contents (names only) | Lumen |
 |---|---|---|
+| all LESS files | every `url()` is written relative to `styles/` (also in `styles/widgets/`, for example the sign-in button icons), and `data-uri()` reads files relative to the entry; Elastic's build does not rewrite urls | the compile runs with url rewriting off; each url is then resolved in `skins/lumen` first, else in `skins/elastic` (`../../elastic/…`); Elastic's images are linked into the mirror tree during the compile so `data-uri()` embeds them |
 | `variables.less` | breakpoints `@screen-width-large/medium/small/xs/mini`, `@page-font-size` (14px), layout sizes (`@layout-menu-width` 78px, `@layout-header-height` 58px, …), `@scrollbar-width`, data-URI icons; ends with an optional `_variables` import | sets `@layout-menu-width` to 96px; reads the breakpoints |
 | `colors.less` | base colours (`@color-main`, `@color-black`, `@color-font`, `@color-link`, `@color-error/success/warning`, `@color-black-shade-*`), layout, task menu, toolbar, menu, list, message, popover, dialog, form, button, quota, quote, date picker, editor, image tools and scrollbar groups, and the `@color-dark-*` family | sets almost every colour variable in `lumen-variables.less` (light and dark), from tokens |
 | `mixins.less` | `.font-icon-class`, `.font-family` (Roboto), `.overflow-ellipsis`, focus helper | `.font-family()` is extended with Sora |
