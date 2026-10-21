@@ -177,6 +177,13 @@ html:not(.touch) .listing li > a:focus-visible {
     }
 }
 
+// The command palette's trigger: lumen-palette.js adds <a class="lumen-palette"> to
+// #taskmenu .special-buttons, so Elastic's menu rules lay it out on every screen size; this
+// gives it its icon in Elastic's icon font.
+.menu a.lumen-palette:before {
+    content: @fa-var-search;
+}
+
 // Phone: the menu is a slide-in panel; its header carries the compact lockup on Night.
 html.layout-phone #layout-menu .popover-header {
     background-color: @lm-night;

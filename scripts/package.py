@@ -15,7 +15,8 @@
 Reproducible: the archive entries are sorted, owned by 0:0 with modes 755/644, and dated
 SOURCE_DATE_EPOCH (default: the time of the last git commit), which is also the stamp's built_at;
 gzip stores no name and no time. The same commit, Roundcube release and compiler versions give
-the same bytes. Python standard library only; the compile needs Node and `npm ci` (package.json).
+the same bytes. Python standard library only; the compile needs Node and `npm ci` (package.json),
+and every package includes the command palette, built first with `npm run build:palette`.
 
 The compiled CSS in the package is an adaptation of Roundcube's Elastic skin and is licensed under
 CC BY-SA 3.0; lumen/README.md, lumen/LICENSE and lumen/NOTICE state every licence.
@@ -193,20 +194,19 @@ def update_sums(out: Path, files: list[Path]) -> Path:
     return sums
 
 
-def build_package(roundcube: Path, out: Path, palette: str = "auto", version: str | None = None,
-                  compiler: str | None = None, node_modules: str | None = None) -> list[Path]:
-    sources = Sources.locate(ROOT, node_modules)
+def build_package(roundcube: Path, out: Path, version: str | None = None, compiler: str | None = None,
+                  node_modules: str | None = None, palette: str | None = None) -> list[Path]:
+    """Build the release package. The command palette is always included (no option leaves it out)."""
+    sources = Sources.locate(ROOT, node_modules, palette)
+    sources.require_palette()
     version = version or sources.version
-    use_palette = palette == "require" or (palette == "auto" and sources.palette.is_file())
-    if palette == "auto" and not use_palette:
-        print(f"note: {sources.palette} does not exist; the package has no command palette", file=sys.stderr)
     epoch = source_date_epoch()
     os.environ["SOURCE_DATE_EPOCH"] = str(epoch)
     rc = Roundcube.at(roundcube)
     out.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="lumen-package-") as tmp:
         skin = Path(tmp) / TOP
-        build(BuildOptions(roundcube=rc.root, out=skin, sources=sources, palette=use_palette, compiler=compiler,
+        build(BuildOptions(roundcube=rc.root, out=skin, sources=sources, compiler=compiler,
                            work_dir=Path(tmp), quiet=True,
                            now=_dt.datetime.fromtimestamp(epoch, _dt.timezone.utc)))
         problems = verify(skin, rc, sources)
@@ -229,9 +229,7 @@ def _add_pin_args(p: argparse.ArgumentParser) -> None:
 def _add_build_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--out", type=Path, default=ROOT / "dist")
     p.add_argument("--version", help="package version (default: version.txt)")
-    g = p.add_mutually_exclusive_group()
-    g.add_argument("--no-palette", action="store_true")
-    g.add_argument("--require-palette", action="store_true")
+    p.add_argument("--palette", help="the built command palette (default: palette/dist/lumen-palette.js)")
     p.add_argument("--compiler", help="compiler command (tests)")
     p.add_argument("--node-modules", help="node_modules with less and clean-css (default: ./node_modules)")
 
@@ -256,13 +254,13 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "fetch":
             print(fetch(args.dest, args.roundcube_version, args.sha256, args.archive))
             return 0
-        palette = "none" if args.no_palette else "require" if args.require_palette else "auto"
         if args.command == "build":
-            files = build_package(args.roundcube, args.out, palette, args.version, args.compiler, args.node_modules)
+            files = build_package(args.roundcube, args.out, args.version, args.compiler, args.node_modules,
+                                  args.palette)
         else:
             with tempfile.TemporaryDirectory(prefix="lumen-release-") as tmp:
                 rc = fetch(Path(tmp) / "roundcube", args.roundcube_version, args.sha256, args.archive)
-                files = build_package(rc, args.out, palette, args.version, args.compiler, args.node_modules)
+                files = build_package(rc, args.out, args.version, args.compiler, args.node_modules, args.palette)
     except LumenError as exc:
         print(exc.render(), file=sys.stderr)
         return exc.exit_code

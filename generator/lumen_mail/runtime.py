@@ -8,7 +8,7 @@ so Sources finds everything without options):
     <prefix>/generator/lumen_mail/     the Python package and compile.mjs
     <prefix>/src/less/                 our LESS sources
     <prefix>/skin/                     our static skin files
-    <prefix>/palette/dist/lumen-palette.js   the built command palette (when present)
+    <prefix>/palette/dist/lumen-palette.js   the prebuilt command palette (required): sync never runs Vite
     <prefix>/node_modules/             less, clean-css and their dependencies only
     <prefix>/version.txt, LICENSE, NOTICE, package.json
     <prefix>/RUNTIME.json              version, time and sha256 of every file
@@ -113,8 +113,9 @@ def check_pins(sources: Sources) -> dict[str, str]:
     return versions
 
 
-def runtime_files(sources: Sources, palette: str) -> list[RuntimeFile]:
+def runtime_files(sources: Sources) -> list[RuntimeFile]:
     sources.check()
+    sources.require_palette()
     root = sources.root
     files: list[RuntimeFile] = []
     for name in ("version.txt", "LICENSE", "NOTICE", "package.json"):
@@ -126,10 +127,7 @@ def runtime_files(sources: Sources, palette: str) -> list[RuntimeFile]:
     for path in sorted(PACKAGE_DIR.iterdir()):
         if path.is_file() and path.suffix in (".py", ".mjs"):
             files.append(RuntimeFile(path, f"generator/lumen_mail/{path.name}"))
-    if palette == "require" and not sources.palette.is_file():
-        raise LumenError(f"the command palette bundle {sources.palette} is missing (build it first)")
-    if palette != "none" and sources.palette.is_file():
-        files.append(RuntimeFile(sources.palette, "palette/dist/lumen-palette.js"))
+    files.append(RuntimeFile(sources.palette, "palette/dist/lumen-palette.js"))
     for pkg in compiler_closure(sources.node_modules):
         rel_pkg = pkg.relative_to(sources.node_modules.resolve()).as_posix()
         for rel in walk_files(pkg):
@@ -140,12 +138,11 @@ def runtime_files(sources: Sources, palette: str) -> list[RuntimeFile]:
 
 
 def install_runtime(sources: Sources, prefix: Path, log: Log, dry_run: bool = False, force: bool = False,
-                    palette: str = "auto", python: str | None = None, owner: tuple[int, int] | None = (0, 0)) -> int:
+                    python: str | None = None, owner: tuple[int, int] | None = (0, 0)) -> int:
     prefix = prefix.absolute()
     versions = check_pins(sources)
-    files = runtime_files(sources, palette)
+    files = runtime_files(sources)
     total = sum(f.source.stat().st_size for f in files)
-    has_palette = any(f.rel == "palette/dist/lumen-palette.js" for f in files)
     if prefix.exists() and not (prefix / MANIFEST).is_file() and not force:
         raise LumenError(f"{prefix} exists and is not a lumen-mail runtime (no {MANIFEST}); refusing to replace it",
                          ["choose another --prefix, or pass --force"])
@@ -153,7 +150,7 @@ def install_runtime(sources: Sources, prefix: Path, log: Log, dry_run: bool = Fa
     if dry_run:
         print(f"dry run: would install lumen-mail {sources.version} into {prefix}: {len(files)} files, "
               f"{total // 1024} KiB (less {versions['less']}, clean-css {versions['clean-css']}, "
-              f"palette {'yes' if has_palette else 'no'}), wrapper {prefix}/bin/lumen-mail using {python}")
+              f"palette {sources.palette.stat().st_size} bytes), wrapper {prefix}/bin/lumen-mail using {python}")
         return 0
     prefix.parent.mkdir(parents=True, exist_ok=True)
     new = Path(tempfile.mkdtemp(prefix=f".{prefix.name}.new-", dir=prefix.parent))
@@ -174,7 +171,7 @@ def install_runtime(sources: Sources, prefix: Path, log: Log, dry_run: bool = Fa
             "lumen_version": sources.version,
             "installed_at": _dt.datetime.now(_dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
             "compiler": versions,
-            "palette": has_palette,
+            "palette": True,
             "python": python,
             "files": manifest_files,
         }
@@ -206,7 +203,7 @@ def install_runtime(sources: Sources, prefix: Path, log: Log, dry_run: bool = Fa
         raise
     log.notice(f"installed the lumen-mail {sources.version} runtime in {prefix} ({len(files)} files, "
                f"{total // 1024} KiB; less {versions['less']}, clean-css {versions['clean-css']}, "
-               f"palette {'yes' if has_palette else 'no'})")
+               "command palette included)")
     print(f"Run it as: {prefix}/bin/lumen-mail <command> (for example: {prefix}/bin/lumen-mail status "
           "--roundcube /path/to/roundcube)")
     return 0

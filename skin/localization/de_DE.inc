@@ -7,11 +7,13 @@
 
 $labels = [];
 $labels['lumen.palette_open'] = 'Befehlspalette öffnen';
+$labels['lumen.palette_trigger'] = 'Springen zu';
 $labels['lumen.palette_title'] = 'Befehlspalette';
 $labels['lumen.palette_placeholder'] = 'Ordner, Einstellungen und Aktionen suchen';
 $labels['lumen.palette_empty'] = 'Keine Treffer';
-$labels['lumen.palette_results'] = '$n Treffer';
+$labels['lumen.palette_results'] = 'Treffer: $n';
 $labels['lumen.palette_hint'] = 'Pfeiltasten zum Wählen, Eingabe zum Öffnen, Esc zum Schließen';
+$labels['lumen.palette_current'] = 'aktuell';
 $labels['lumen.palette_group_tasks'] = 'Gehe zu';
 $labels['lumen.palette_group_folders'] = 'Ordner';
 $labels['lumen.palette_group_settings'] = 'Einstellungen';

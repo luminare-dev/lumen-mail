@@ -4,7 +4,8 @@ Checks, each with a message that names the file:
   * meta.json: valid, named Lumen, extends elastic, localization on, only known config keys;
   * every required file exists; nothing in the folder is a copy of an Elastic file;
   * templates are wrappers only (see templates.py) and their Elastic counterpart exists;
-  * scripts and data-src-* references in the templates point to files in the skin;
+  * scripts and data-src-* references in the templates point to files in the skin, and a
+    wrapper loads the command palette (lumen-palette.js, which every build includes);
   * compiled CSS: licence banner, every url() resolves at the FINAL location
     (<roundcube>/skins/lumen/styles/), is a type static.php serves and carries ?v=<hash> of the
     current target content;
@@ -41,6 +42,7 @@ REQUIRED = (
     "localization/de_DE.inc",
     "fonts/Sora-Variable.woff",
     "fonts/Sora-OFL.txt",
+    PALETTE_FILE,
     "LICENSE",
     "NOTICE",
     *CSS_OUTPUTS,
@@ -109,6 +111,7 @@ def _check_no_elastic_copies(skin: Path, rc: Roundcube) -> list[str]:
 
 def _check_templates(skin: Path, rc: Roundcube) -> list[str]:
     problems = []
+    palette_loaded = False
     for rel in template_files(skin):
         text = (skin / "templates" / rel).read_text(encoding="utf-8")
         report, found = check_wrapper(rel, text)
@@ -116,10 +119,13 @@ def _check_templates(skin: Path, rc: Roundcube) -> list[str]:
         if not (rc.elastic_dir / "templates" / rel).is_file():
             problems.append(f"templates/{rel} wraps skins/{PARENT_SKIN}/templates/{rel}, which does not exist")
         for attrs in report.scripts:
+            palette_loaded = palette_loaded or (attrs.get("src") == f"/{PALETTE_FILE}" and "defer" in attrs)
             for key, value in attrs.items():
                 if (key == "src" or key.startswith("data-src-")) and value.startswith("/"):
                     if not (skin / value.lstrip("/")).is_file():
                         problems.append(f"templates/{rel}: {key}={value} does not exist in the skin")
+    if not palette_loaded:
+        problems.append(f"no wrapper template loads the command palette (<script src=\"/{PALETTE_FILE}\" defer>)")
     return problems
 
 
@@ -219,8 +225,6 @@ def _check_stamp(skin: Path, rc: Roundcube, sources: Sources | None, exact: bool
             problems.append(f"{rel} differs from the content recorded in {STAMP_NAME}")
     for rel in sorted(present - set(files)):
         problems.append(f"{rel} is not listed in {STAMP_NAME}")
-    if stamp.get("palette") and not (skin / PALETTE_FILE).is_file():
-        problems.append(f"{PALETTE_FILE} is missing although the stamp says the palette is included")
-    if not stamp.get("palette") and (skin / PALETTE_FILE).is_file():
-        problems.append(f"{PALETTE_FILE} exists although the stamp says the build has no palette")
+    if stamp.get("palette") is not True:
+        problems.append(f"{STAMP_NAME}: built without the command palette (every build must include it)")
     return problems

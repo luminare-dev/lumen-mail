@@ -7,7 +7,8 @@ The same layout is used in a git checkout and in the runtime copy that install-r
     <root>/LICENSE, <root>/NOTICE      copied into every build
     <root>/src/less/                   our LESS: tokens, Elastic variable overrides, component layer
     <root>/skin/                       our static skin files (templates, images, fonts, ...)
-    <root>/palette/dist/lumen-palette.js   the built command palette (optional, see --no-palette)
+    <root>/palette/dist/lumen-palette.js   the built command palette (required; npm run build:palette,
+                                           or --palette FILE, e.g. from a release package)
     <root>/node_modules/               the pinned compiler (less, clean-css)
     <root>/generator/lumen_mail/       this package (compile.mjs lives next to the Python files)
 
@@ -81,12 +82,21 @@ class Sources:
         if missing:
             raise LumenError(f"the lumen-mail sources at {self.root} are incomplete", [f"missing {m}" for m in missing])
 
-    def digest(self, include_palette: bool) -> str:
+    def require_palette(self) -> None:
+        if not self.palette.is_file():
+            raise LumenError(f"the command palette bundle {self.palette} is missing (every build includes it)", [
+                "build it in the lumen-mail checkout: npm ci --ignore-scripts --no-audit --no-fund && "
+                "npm run build:palette",
+                "or use the lumen-palette.js of a release package of the same version: --palette FILE "
+                "(or $LUMEN_MAIL_PALETTE)",
+            ])
+
+    def digest(self) -> str:
         """sha256 over everything the build reads from us (detects a changed runtime copy)."""
         patterns = ["version.txt", "LICENSE", "NOTICE", "src/less/*.less", "skin/**/*", "generator/lumen_mail/*.py",
                     "generator/lumen_mail/compile.mjs"]
         digest = tree_digest(self.root, patterns)
-        if include_palette and self.palette.is_file():
+        if self.palette.is_file():
             h = hashlib.sha256((digest + "\0").encode())
             h.update(self.palette.read_bytes())
             digest = "sha256:" + h.hexdigest()

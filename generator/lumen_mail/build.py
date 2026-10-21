@@ -14,6 +14,10 @@
    with a one-month Expires header), its target must exist and be a type static.php serves, and
    every file gets the licence banner.
 4. Write the stamp (lumen-build.stamp), move the result into place and run verify on it.
+
+The command palette (palette/dist/lumen-palette.js, built by Vite beforehand) is part of every
+build: there is no switch to leave it out, so no build, install or release package can ship
+without it by accident. Tests use a stub bundle (tests/fixtures/lumen-palette.js).
 """
 
 from __future__ import annotations
@@ -69,7 +73,6 @@ class BuildOptions:
     roundcube: Path
     out: Path
     sources: Sources
-    palette: bool = True
     compiler: str | None = None
     node: str | None = None
     work_dir: Path | None = None
@@ -89,9 +92,7 @@ def build(opts: BuildOptions) -> BuildResult:
     sources = opts.sources
     sources.check()
     check_drift(rc, sources)
-    if opts.palette and not sources.palette.is_file():
-        raise LumenError(f"the command palette bundle {sources.palette} is missing",
-                         ["build it first (npm run build:palette), or pass --no-palette to build without it"])
+    sources.require_palette()
     out = opts.out.resolve()
     if out.exists() and (not out.is_dir() or any(out.iterdir())):
         raise LumenError(f"{out} already exists and is not an empty directory")
@@ -107,8 +108,7 @@ def build(opts: BuildOptions) -> BuildResult:
         lumen_version = sources.version
         roundcube_version = rc.version()
         info(f"lumen-mail {lumen_version}: building against Roundcube {roundcube_version} at {rc.root}", opts.quiet)
-        assemble_static(sources, skin, palette=opts.palette, lumen_version=lumen_version,
-                        roundcube_version=roundcube_version)
+        assemble_static(sources, skin, lumen_version=lumen_version, roundcube_version=roundcube_version)
         styles = skin / "styles"
         styles.mkdir(exist_ok=True)
         for name in LESS_FILES:
@@ -147,8 +147,8 @@ def build(opts: BuildOptions) -> BuildResult:
             "lumen_version": lumen_version,
             "roundcube_version": roundcube_version,
             "elastic_digest": rc.elastic_digest(),
-            "source_digest": sources.digest(include_palette=opts.palette),
-            "palette": bool(opts.palette),
+            "source_digest": sources.digest(),
+            "palette": True,
             "built_at": now.isoformat().replace("+00:00", "Z"),
             "compiler": result.get("versions", {}),
             "files": {p.as_posix(): sha256_file(skin / p) for p in walk_files(skin)},
@@ -179,16 +179,15 @@ def source_date() -> _dt.datetime | None:
     return _dt.datetime.fromtimestamp(int(value), _dt.timezone.utc)
 
 
-def assemble_static(sources: Sources, skin: Path, palette: bool, lumen_version: str,
-                    roundcube_version: str) -> None:
-    """Copy our static skin files; assemble wrapper templates; render the README."""
+def assemble_static(sources: Sources, skin: Path, lumen_version: str, roundcube_version: str) -> None:
+    """Copy our static skin files and the palette bundle; assemble wrapper templates; render the README."""
     src = sources.skin_dir
     for rel in walk_files(src):
         target = skin / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         if rel.parts[0] == "templates" and rel.suffix == ".html":
             text = (src / rel).read_text(encoding="utf-8")
-            target.write_text(assemble(text, keep={"palette"} if palette else set()), encoding="utf-8")
+            target.write_text(assemble(text, keep=set()), encoding="utf-8")
         elif rel.as_posix() == "README.md":
             text = string.Template((src / rel).read_text(encoding="utf-8"))
             target.write_text(text.substitute(lumen_version=lumen_version, roundcube_version=roundcube_version),
@@ -197,8 +196,7 @@ def assemble_static(sources: Sources, skin: Path, palette: bool, lumen_version: 
             shutil.copy2(src / rel, target)
     for name in LEGAL_FILES:
         shutil.copy2(sources.root / name, skin / name)
-    if palette:
-        shutil.copy2(sources.palette, skin / PALETTE_FILE)
+    shutil.copy2(sources.palette, skin / PALETTE_FILE)
 
 
 def link_elastic_images(elastic: Path, skin: Path) -> list[Path]:

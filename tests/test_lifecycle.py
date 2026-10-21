@@ -28,7 +28,7 @@ from lumen_mail import STAMP_NAME  # noqa: E402
 from lumen_mail import fsops  # noqa: E402
 from lumen_mail.build import BuildOptions, build  # noqa: E402
 from lumen_mail.cli import main as cli_main  # noqa: E402
-from lumen_mail.lifecycle import (EXIT_COMPILE, EXIT_NOT_INSTALLED, EXIT_OK, EXIT_SYNC_NEEDED,  # noqa: E402
+from lumen_mail.lifecycle import (EXIT_COMPILE, EXIT_ERROR, EXIT_NOT_INSTALLED, EXIT_OK, EXIT_SYNC_NEEDED,  # noqa: E402
                                   EXIT_TEMPFAIL, SCRATCH_NAME, Lifecycle, RefusedError, integrity_problems,
                                   read_stamp)
 from lumen_mail.log import Log  # noqa: E402
@@ -68,7 +68,7 @@ class LifecycleCase(FakeTreeCase):
     def lc(self, **kw) -> Lifecycle:
         opts = dict(roundcube=self.rc, state=self.state, sources=Sources.locate(ROOT), log=Log(stream=self.logbuf),
                     owner_spec="", settle=0.0, wait=2.0, min_available_mb=0, lock_timeout=0.0,
-                    compiler=self.compiler, work_dir=self.tmp / "work", palette="none")
+                    compiler=self.compiler, work_dir=self.tmp / "work")
         opts.update(kw)
         (self.tmp / "work").mkdir(exist_ok=True)
         return Lifecycle(**opts)
@@ -174,7 +174,7 @@ class InstallTest(LifecycleCase):
 
     def test_install_from_a_built_folder(self):
         built = build(BuildOptions(roundcube=self.rc, out=self.tmp / "pkg/lumen", sources=Sources.locate(ROOT),
-                                   palette=False, compiler=self.compiler, quiet=True)).out
+                                   compiler=self.compiler, quiet=True)).out
         lc = self.lc()
         with redirect_stdout(io.StringIO()):
             self.assertEqual(lc.install(from_dir=built), EXIT_OK)
@@ -186,7 +186,7 @@ class InstallTest(LifecycleCase):
 
     def test_install_from_a_package_for_another_release_needs_allow_mismatch(self):
         built = build(BuildOptions(roundcube=self.rc, out=self.tmp / "pkg/lumen", sources=Sources.locate(ROOT),
-                                   palette=False, compiler=self.compiler, quiet=True)).out
+                                   compiler=self.compiler, quiet=True)).out
         self.set_version("9.8.8")
         with self.assertRaises(Exception), redirect_stdout(io.StringIO()):
             self.lc().install(from_dir=built)
@@ -246,7 +246,7 @@ class CheckTest(LifecycleCase):
     def test_cli_check_json(self):
         self.install()
         code, out, _err = run_cli("check", "--roundcube", str(self.rc), "--state-dir", str(self.state.root),
-                                  "--source", str(ROOT), "--no-palette", "--json")
+                                  "--source", str(ROOT), "--json")
         self.assertEqual(code, 0)
         self.assertEqual(json.loads(out)["status"], "ok")
 
@@ -367,6 +367,19 @@ class SyncTest(LifecycleCase):
         self.assertEqual(read_stamp(self.skin)["roundcube_version"], "9.8.9")
         self.assertIsNone(SyncState.load(self.state).failure)
 
+    def test_a_runtime_without_the_palette_restores_but_never_builds_without_it(self):
+        self.install()
+        before = read_stamp(self.skin)
+        self.simulate_keyhelp_update(version="9.8.8")
+        starts = self.compiler_starts()
+        with mock.patch.dict(os.environ, {"LUMEN_MAIL_PALETTE": str(self.tmp / "gone/lumen-palette.js")}):
+            self.assertEqual(self.lc(sources=Sources.locate(ROOT)).sync(), EXIT_ERROR)
+        self.assertEqual(read_stamp(self.skin), before, "the restored build (with its palette) stays active")
+        self.assertTrue((self.skin / "lumen-palette.js").is_file())
+        self.assertEqual(self.compiler_starts(), starts, "no compile without the palette bundle")
+        self.assertIn("the command palette bundle", self.logbuf.getvalue())
+        self.assertIn("npm run build:palette", self.logbuf.getvalue())
+
     def test_an_os_error_during_the_rebuild_backs_off_too(self):
         self.install()
         self.set_version("9.8.8")
@@ -399,7 +412,7 @@ class SyncTest(LifecycleCase):
             with self.assertRaises(BusyError):
                 self.lc().sync()
             code, _out, _err = run_cli("sync", "--roundcube", str(self.rc), "--state-dir", str(self.state.root),
-                                       "--lock-timeout", "0", "--source", str(ROOT), "--no-palette")
+                                       "--lock-timeout", "0", "--source", str(ROOT))
             self.assertEqual(code, EXIT_TEMPFAIL)
         self.assertEqual(self.lc().sync(), EXIT_OK)
 
@@ -559,8 +572,7 @@ class UninstallTest(LifecycleCase):
 
 class CliAndLogTest(LifecycleCase):
     def args(self, *extra: str) -> list[str]:
-        return [*extra, "--roundcube", str(self.rc), "--state-dir", str(self.state.root), "--source", str(ROOT),
-                "--no-palette"]
+        return [*extra, "--roundcube", str(self.rc), "--state-dir", str(self.state.root), "--source", str(ROOT)]
 
     def test_install_status_and_check_through_the_cli(self):
         code, out, err = run_cli(*self.args("install", "--owner", "", "--compiler", self.compiler,

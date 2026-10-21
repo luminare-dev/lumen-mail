@@ -6,6 +6,7 @@ needed. The real compile is in test_lumen_integration.py.
 
 from __future__ import annotations
 
+import argparse
 import io
 import json
 import os
@@ -27,6 +28,7 @@ from lumen_mail.cssurls import iter_urls, rewrite_urls  # noqa: E402
 from lumen_mail.elastic import DriftError  # noqa: E402
 from lumen_mail.roundcube import Roundcube  # noqa: E402
 from lumen_mail.sources import Sources  # noqa: E402
+from lumen_mail.cli import parser as cli_parser  # noqa: E402
 from lumen_mail.templates import assemble, check_wrapper  # noqa: E402
 from lumen_mail.util import LumenError, sha256_file, short_hash  # noqa: E402
 from lumen_mail.verify import verify  # noqa: E402
@@ -45,7 +47,7 @@ class BuildTest(FakeTreeCase):
     def build(self, palette: Path | None = None, out_name: str = "out/lumen"):
         sources = Sources.locate(ROOT, palette=palette)
         return build(BuildOptions(roundcube=self.rc, out=self.tmp / out_name, sources=sources,
-                                  palette=palette is not None, compiler=self.compiler, quiet=True))
+                                  compiler=self.compiler, quiet=True))
 
     def test_build_assembles_the_skin(self):
         result = self.build()
@@ -54,7 +56,7 @@ class BuildTest(FakeTreeCase):
                     "templates/includes/footer.html", "localization/en_US.inc", "localization/de_DE.inc",
                     "fonts/Sora-Variable.woff", "fonts/Sora-OFL.txt", "images/luminare-mark.svg",
                     "styles/styles.css", "styles/styles.min.css", "styles/embed.css", "styles/embed.min.css",
-                    STAMP_NAME):
+                    "lumen-palette.js", STAMP_NAME):
             self.assertTrue((out / rel).is_file(), rel)
         self.assertFalse(list(out.rglob("*.less")), "no LESS source may stay in the skin")
         self.assertEqual(verify(out, Roundcube.at(self.rc), Sources.locate(ROOT)), [])
@@ -74,7 +76,7 @@ class BuildTest(FakeTreeCase):
         self.assertEqual(stamp["roundcube_version"], FAKE_VERSION)
         self.assertEqual(stamp["elastic_digest"], rc.elastic_digest())
         self.assertTrue(stamp["elastic_digest"].startswith("sha256:"))
-        self.assertFalse(stamp["palette"])
+        self.assertIs(stamp["palette"], True)
         self.assertRegex(stamp["built_at"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
         files = {p.relative_to(result.out).as_posix() for p in result.out.rglob("*") if p.is_file()}
         self.assertEqual(set(stamp["files"]), files - {STAMP_NAME})
@@ -101,30 +103,37 @@ class BuildTest(FakeTreeCase):
         images = sorted(p.name for p in (out / "images").iterdir())
         self.assertEqual(images, sorted(p.name for p in (ROOT / "skin/images").iterdir()))
 
-    def test_palette_is_required_unless_disabled(self):
+    def test_the_palette_is_always_required(self):
         sources = Sources.locate(ROOT, palette=self.tmp / "nowhere.js")
         with self.assertRaises(LumenError) as ctx:
-            build(BuildOptions(roundcube=self.rc, out=self.tmp / "x", sources=sources, palette=True,
-                               compiler=self.compiler, quiet=True))
-        self.assertIn("--no-palette", ctx.exception.render())
+            build(BuildOptions(roundcube=self.rc, out=self.tmp / "x", sources=sources, compiler=self.compiler,
+                               quiet=True))
+        text = ctx.exception.render()
+        self.assertIn("command palette bundle", text)
+        self.assertIn("npm run build:palette", text)
+        self.assertNotIn("--no-palette", text)
+        self.assertFalse((self.tmp / "x").exists())
 
-    def test_footer_with_and_without_palette(self):
-        plain = self.build(out_name="a/lumen").out
-        footer = (plain / "templates/includes/footer.html").read_text()
-        self.assertIn('<script src="/lumen.js"', footer)
-        self.assertNotIn("lumen-palette.js", footer)
-        self.assertNotIn("add_label", footer)
-        self.assertNotIn("<!--", footer)
-        self.assertTrue(footer.rstrip().endswith('<roundcube:include file="includes/footer.html" skinpath="skins/elastic" />'))
+    def test_no_command_has_an_option_to_leave_the_palette_out(self):
+        commands = next(a for a in cli_parser()._actions  # noqa: SLF001
+                        if isinstance(a, argparse._SubParsersAction))  # noqa: SLF001
+        self.assertIn("build", commands.choices)
+        for name, sub in commands.choices.items():
+            options = {o for a in sub._actions for o in a.option_strings}  # noqa: SLF001
+            self.assertFalse({"--no-palette", "--require-palette"} & options, name)
+
+    def test_footer_loads_the_palette_and_its_labels(self):
         bundle = write(self.tmp / "palette.js", "/*! palette */\n(function(){})();\n")
-        with_palette = self.build(palette=bundle, out_name="b/lumen").out
-        footer = (with_palette / "templates/includes/footer.html").read_text()
+        out = self.build(palette=bundle).out
+        footer = (out / "templates/includes/footer.html").read_text()
+        self.assertIn('<script src="/lumen.js"', footer)
         self.assertIn('<script src="/lumen-palette.js" defer></script>', footer)
         self.assertIn('<roundcube:add_label name="lumen.palette_title" />', footer)
-        self.assertTrue((with_palette / "lumen-palette.js").is_file())
-        stamp = json.loads((with_palette / STAMP_NAME).read_text())
-        self.assertTrue(stamp["palette"])
-        self.assertEqual(verify(with_palette, Roundcube.at(self.rc), Sources.locate(ROOT)), [])
+        self.assertNotIn("<!--", footer)
+        self.assertTrue(footer.rstrip().endswith('<roundcube:include file="includes/footer.html" skinpath="skins/elastic" />'))
+        self.assertEqual((out / "lumen-palette.js").read_bytes(), bundle.read_bytes())
+        self.assertTrue(json.loads((out / STAMP_NAME).read_text())["palette"])
+        self.assertEqual(verify(out, Roundcube.at(self.rc), Sources.locate(ROOT, palette=bundle)), [])
 
     def test_labels_in_the_footer_exist_in_the_localization(self):
         footer = (ROOT / "skin/templates/includes/footer.html").read_text()
@@ -168,7 +177,7 @@ class BuildTest(FakeTreeCase):
 class DriftTest(FakeTreeCase):
     def build(self):
         return build(BuildOptions(roundcube=self.rc, out=self.tmp / "out", sources=Sources.locate(ROOT),
-                                  palette=False, compiler=self.compiler, quiet=True))
+                                  compiler=self.compiler, quiet=True))
 
     def test_missing_variable_is_named(self):
         colors = self.rc / "skins/elastic/styles/colors.less"
@@ -192,6 +201,18 @@ class DriftTest(FakeTreeCase):
             self.build()
         self.assertIn("no longer contains 'src=\"/ui.js\"'", ctx.exception.render())
 
+    def test_missing_core_label_is_named(self):
+        labels = self.rc / "program/localization/en_US/labels.inc"
+        labels.write_text(labels.read_text().replace("$labels['checkmail'] = 'fake checkmail';\n", ""))
+        with self.assertRaises(DriftError) as ctx:
+            self.build()
+        self.assertIn("Roundcube no longer has the label 'checkmail', which skin/templates/includes/footer.html",
+                      ctx.exception.render())
+        labels.unlink()
+        with self.assertRaises(DriftError) as ctx:
+            self.build()
+        self.assertIn("program/localization/en_US/labels.inc is missing", ctx.exception.render())
+
     def test_elastic_styles_css_would_shadow_ours(self):
         write(self.rc / "skins/elastic/styles/styles.css", "/* new */")
         with self.assertRaises(DriftError) as ctx:
@@ -202,7 +223,7 @@ class DriftTest(FakeTreeCase):
         colors = self.rc / "skins/elastic/styles/colors.less"
         colors.write_text(colors.read_text().replace("@color-main: #123456;\n", ""))
         code, _, err = run_cli("build", "--roundcube", str(self.rc), "--out", str(self.tmp / "o"),
-                               "--no-palette", "--compiler", self.compiler, "-q")
+                               "--compiler", self.compiler, "-q")
         self.assertEqual(code, 3, err)
         self.assertIn("@color-main", err)
 
@@ -210,7 +231,7 @@ class DriftTest(FakeTreeCase):
         os.environ["STUB_COMPILER_FAIL"] = "1"
         self.addCleanup(os.environ.pop, "STUB_COMPILER_FAIL", None)
         code, _, err = run_cli("build", "--roundcube", str(self.rc), "--out", str(self.tmp / "o"),
-                               "--no-palette", "--compiler", self.compiler, "-q")
+                               "--compiler", self.compiler, "-q")
         self.assertEqual(code, 4, err)
         self.assertIn("variable @color-x is undefined", err)
         self.assertFalse((self.tmp / "o").exists())
@@ -220,7 +241,7 @@ class VerifyTest(FakeTreeCase):
     def setUp(self) -> None:
         super().setUp()
         self.out = build(BuildOptions(roundcube=self.rc, out=self.tmp / "out/lumen", sources=Sources.locate(ROOT),
-                                      palette=False, compiler=self.compiler, quiet=True)).out
+                                      compiler=self.compiler, quiet=True)).out
         self.rcx = Roundcube.at(self.rc)
 
     def problems(self) -> list[str]:
@@ -293,6 +314,20 @@ class VerifyTest(FakeTreeCase):
         self.assertIn("styles/embed.min.css is missing", found)
         self.assertIn("listed in lumen-build.stamp but missing", found)
 
+    def test_a_build_without_the_palette_is_caught(self):
+        (self.out / "lumen-palette.js").unlink()
+        stamp_path = self.out / STAMP_NAME
+        stamp = json.loads(stamp_path.read_text())
+        stamp["palette"] = False
+        del stamp["files"]["lumen-palette.js"]
+        stamp_path.write_text(json.dumps(stamp))
+        footer = self.out / "templates/includes/footer.html"
+        footer.write_text(footer.read_text().replace('<script src="/lumen-palette.js" defer></script>\n', ""))
+        found = "\n".join(self.problems())
+        self.assertIn("lumen-palette.js is missing", found)
+        self.assertIn("built without the command palette", found)
+        self.assertIn("no wrapper template loads the command palette", found)
+
     def test_meta_must_extend_elastic(self):
         meta = self.out / "meta.json"
         data = json.loads(meta.read_text())
@@ -331,11 +366,11 @@ class TemplateRulesTest(unittest.TestCase):
             _, problems = check_wrapper("includes/footer.html", text)
             self.assertTrue(problems, name)
 
-    def test_source_footer_is_a_valid_wrapper_in_both_variants(self):
+    def test_source_footer_is_a_valid_wrapper(self):
         src = (ROOT / "skin/templates/includes/footer.html").read_text()
-        for keep in ({"palette"}, set()):
-            _, problems = check_wrapper("includes/footer.html", assemble(src, keep))
-            self.assertEqual(problems, [], keep)
+        report, problems = check_wrapper("includes/footer.html", assemble(src, set()))
+        self.assertEqual(problems, [])
+        self.assertIn({"src": "/lumen-palette.js", "defer": ""}, report.scripts)
 
 
 class CssUrlTest(unittest.TestCase):

@@ -14,6 +14,7 @@ from pathlib import Path
 
 from .roundcube import Roundcube
 from .sources import LESS_FILES, Sources
+from .templates import check_wrapper, template_files
 from .util import LumenError
 
 
@@ -57,6 +58,12 @@ MARKERS = (
     ("styles/mixins.less", ".font-family", "Lumen extends this mixin to set Sora"),
     ("styles/styles.less", '@import "dark"', "Elastic's dark mode, which Lumen recolours"),
 )
+
+# Roundcube's English core labels: every core label a wrapper template registers for the command
+# palette (<roundcube:add_label name="..."/>, e.g. "compose") must still exist, or the palette
+# would show the bare key.
+CORE_LABELS_FILE = "program/localization/en_US/labels.inc"
+LABEL_DEF_RE = re.compile(r"""\$labels\[\s*['"]([A-Za-z0-9_.-]+)['"]\s*\]""")
 
 VAR_DEF_RE = re.compile(r"^\s*@([A-Za-z_][\w-]*)\s*:", re.MULTILINE)
 VAR_USE_RE = re.compile(r"@@?\{?([A-Za-z_][\w-]*)\}?")
@@ -113,6 +120,15 @@ def our_variable_refs(less_dir: Path) -> list[VariableRef]:
     return refs
 
 
+def wrapper_core_labels(skin_dir: Path) -> list[tuple[str, str]]:
+    """(label, template) for every Roundcube core label our wrapper templates register."""
+    found: list[tuple[str, str]] = []
+    for rel in template_files(skin_dir):
+        report, _problems = check_wrapper(rel, (skin_dir / "templates" / rel).read_text(encoding="utf-8"))
+        found += [(name, rel) for name in report.labels if not name.startswith("lumen.")]
+    return found
+
+
 def check_drift(rc: Roundcube, sources: Sources) -> None:
     """Raise DriftError listing every missing file, marker or variable."""
     elastic = rc.elastic_dir
@@ -138,5 +154,15 @@ def check_drift(rc: Roundcube, sources: Sources) -> None:
             seen.add((ref.name, ref.kind))
             verb = "sets" if ref.kind == "set" else "uses"
             problems.append(f"Elastic no longer defines @{ref.name}, which {ref.file}:{ref.line} {verb}")
+    core = wrapper_core_labels(sources.skin_dir)
+    labels_path = rc.root / CORE_LABELS_FILE
+    if core and not labels_path.is_file():
+        problems.append(f"{CORE_LABELS_FILE} is missing (the core labels the command palette shows)")
+    elif core:
+        known = set(LABEL_DEF_RE.findall(labels_path.read_text(encoding="utf-8", errors="replace")))
+        for name, rel in core:
+            if name not in known:
+                problems.append(f"Roundcube no longer has the label {name!r}, which skin/templates/{rel} registers "
+                                "for the command palette")
     if problems:
         raise DriftError("the installed Elastic skin changed in a way Lumen does not support yet", problems)

@@ -144,11 +144,9 @@ class Wanted:
     elastic_digest: str
     lumen_version: str
     source_digest: str
-    palette: bool
 
     def key(self) -> str:
-        return "|".join([self.roundcube_version, self.elastic_digest, self.lumen_version, self.source_digest,
-                         str(self.palette)])
+        return "|".join([self.roundcube_version, self.elastic_digest, self.lumen_version, self.source_digest])
 
 
 def stale_reasons(stamp: dict | None, want: Wanted) -> list[str]:
@@ -162,10 +160,7 @@ def stale_reasons(stamp: dict | None, want: Wanted) -> list[str]:
     if stamp.get("lumen_version") != want.lumen_version:
         reasons.append(f"built by lumen-mail {stamp.get('lumen_version')}, the sources are {want.lumen_version}")
     elif stamp.get("source_digest") != want.source_digest:
-        if bool(stamp.get("palette")) != want.palette:
-            reasons.append("the command palette bundle was " + ("added" if want.palette else "removed"))
-        else:
-            reasons.append("the lumen-mail sources changed since the build")
+        reasons.append("the lumen-mail sources changed since the build")
     return reasons
 
 
@@ -178,7 +173,6 @@ class Lifecycle:
     owner_spec: str = "auto"
     keep: int = 5
     dry_run: bool = False
-    palette: str = "auto"                 # "auto": use the bundle when present; "require"; "none"
     compiler: str | None = None
     node: str | None = None
     work_dir: Path | None = None          # the build's temporary mirror tree (default: $TMPDIR)
@@ -245,18 +239,10 @@ class Lifecycle:
                 out.append(None)
         return tuple(out)
 
-    def palette_wanted(self) -> bool:
-        if self.palette == "none":
-            return False
-        if self.palette == "require":
-            if not self.sources.palette.is_file():
-                raise LumenError(f"the command palette bundle {self.sources.palette} is missing")
-            return True
-        return self.sources.palette.is_file()
-
     def wanted(self, rc: Roundcube) -> Wanted:
-        palette = self.palette_wanted()
-        return Wanted(rc.version(), rc.elastic_digest(), self.sources.version, self.sources.digest(palette), palette)
+        # A missing palette bundle changes the source digest, so a check reports "sources changed"
+        # and the rebuild then stops with the build's own message (the active build stays).
+        return Wanted(rc.version(), rc.elastic_digest(), self.sources.version, self.sources.digest())
 
     def last_good_ok(self) -> bool:
         return self.state.last_good.is_dir() and not integrity_problems(self.state.last_good)
@@ -355,9 +341,9 @@ class Lifecycle:
             os.rename(tmp, target)
             remove_tree(old)
 
-    def build_staged(self, rc: Roundcube, run: Path, palette: bool) -> Path:
+    def build_staged(self, rc: Roundcube, run: Path) -> Path:
         out = run / SKIN_NAME
-        build(BuildOptions(roundcube=rc.root, out=out, sources=self.sources, palette=palette,
+        build(BuildOptions(roundcube=rc.root, out=out, sources=self.sources,
                            compiler=self.compiler, node=self.node,
                            work_dir=self.work_dir or Path(tempfile.gettempdir()), quiet=not self.log.verbose))
         return out
@@ -416,13 +402,12 @@ class Lifecycle:
     # ------------------------------------------------------------------ install
     def install(self, from_dir: Path | None = None, allow_mismatch: bool = False) -> int:
         rc = Roundcube.at(self.roundcube)
-        palette = self.palette_wanted() if from_dir is None else False
         current = read_stamp(self.skin_dir)
         if self.dry_run:
             if from_dir is None:
                 check_drift(rc, self.sources)
-                what = f"build Lumen {self.sources.version} against Roundcube {rc.version()} at {rc.root}" \
-                       f" ({'with' if palette else 'without'} the command palette)"
+                self.sources.require_palette()
+                what = f"build Lumen {self.sources.version} against Roundcube {rc.version()} at {rc.root}"
             else:
                 problems = verify(from_dir, rc, None, exact=not allow_mismatch)
                 for p in problems:
@@ -447,7 +432,7 @@ class Lifecycle:
                     if problems:
                         raise LumenError(f"{from_dir} does not pass verify against {rc.root}", problems)
                 else:
-                    staged = self.build_staged(rc, run, palette)
+                    staged = self.build_staged(rc, run)
                 backup = self.put_in_place(staged, "replaced-install")
                 self.save_last_good(self.skin_dir)
             finally:
@@ -713,7 +698,7 @@ class Lifecycle:
         run = self.new_run_dir()
         try:
             try:
-                staged = self.build_staged(rc, run, want.palette)
+                staged = self.build_staged(rc, run)
             except (LumenError, OSError) as exc:
                 error = exc if isinstance(exc, LumenError) else LumenError(f"the build stopped: {exc}")
                 self._record_failure(state, key, error)

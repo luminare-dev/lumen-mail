@@ -57,13 +57,10 @@ def add_source_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--node-modules", help="node_modules with less and clean-css (default: <source>/node_modules)")
 
 
-def add_palette_args(p: argparse.ArgumentParser, default_auto: bool) -> None:
-    p.add_argument("--palette", help="the built command palette (default: <source>/palette/dist/lumen-palette.js)")
-    g = p.add_mutually_exclusive_group()
-    g.add_argument("--no-palette", action="store_true", help="build without the command palette")
-    if default_auto:
-        g.add_argument("--require-palette", action="store_true",
-                       help="fail if the palette bundle is missing (default: use it when it exists)")
+def add_palette_args(p: argparse.ArgumentParser) -> None:
+    # Every build includes the command palette; there is deliberately no option to leave it out.
+    p.add_argument("--palette", help="the built command palette (default: <source>/palette/dist/lumen-palette.js, "
+                                     "or $LUMEN_MAIL_PALETTE)")
 
 
 def add_common(p: argparse.ArgumentParser, roundcube: bool = True) -> None:
@@ -88,7 +85,7 @@ def add_writer(p: argparse.ArgumentParser) -> None:
 
 
 def add_builder(p: argparse.ArgumentParser) -> None:
-    add_palette_args(p, default_auto=True)
+    add_palette_args(p)
     p.add_argument("--compiler", help="compiler command speaking compile.mjs's protocol (tests; $LUMEN_MAIL_COMPILER)")
     p.add_argument("--node", help="node binary (default: node from PATH, or $LUMEN_MAIL_NODE)")
     p.add_argument("--work-dir", help="where the build's temporary mirror tree goes (default: $TMPDIR)")
@@ -97,14 +94,6 @@ def add_builder(p: argparse.ArgumentParser) -> None:
 def sources_from(args: argparse.Namespace) -> Sources:
     return Sources.locate(getattr(args, "source", None), getattr(args, "node_modules", None),
                           getattr(args, "palette", None))
-
-
-def palette_mode(args: argparse.Namespace) -> str:
-    if getattr(args, "no_palette", False):
-        return "none"
-    if getattr(args, "require_palette", False) or getattr(args, "palette", None):
-        return "require"
-    return "auto"
 
 
 def lifecycle_from(args: argparse.Namespace) -> Lifecycle:
@@ -118,7 +107,6 @@ def lifecycle_from(args: argparse.Namespace) -> Lifecycle:
         owner_spec=getattr(args, "owner", "auto"),
         keep=max(1, getattr(args, "keep", 5)),
         dry_run=getattr(args, "dry_run", False),
-        palette=palette_mode(args),
         compiler=getattr(args, "compiler", None),
         node=getattr(args, "node", None),
         work_dir=Path(args.work_dir) if getattr(args, "work_dir", None) else None,
@@ -138,7 +126,7 @@ class UsageError(LumenError):
 def cmd_build(args: argparse.Namespace) -> int:
     result = build(BuildOptions(
         roundcube=Path(args.roundcube), out=Path(args.out), sources=sources_from(args),
-        palette=not args.no_palette, compiler=args.compiler, node=args.node,
+        compiler=args.compiler, node=args.node,
         work_dir=Path(args.work_dir) if args.work_dir else None, quiet=args.quiet,
     ))
     if args.print_stamp:
@@ -150,7 +138,7 @@ def configure_build(p: argparse.ArgumentParser) -> None:
     p.add_argument("--roundcube", required=True, help="Roundcube root (the folder with program/ and skins/)")
     p.add_argument("--out", required=True, help="output folder for the skin (must not exist or be empty)")
     add_source_args(p)
-    add_palette_args(p, default_auto=False)
+    add_palette_args(p)
     p.add_argument("--compiler", help="compiler command speaking compile.mjs's protocol (tests; $LUMEN_MAIL_COMPILER)")
     p.add_argument("--node", help="node binary (default: node from PATH, or $LUMEN_MAIL_NODE)")
     p.add_argument("--work-dir", help="where the temporary mirror tree goes (default: next to --out)")
@@ -234,7 +222,7 @@ def add_config_arg(p: argparse.ArgumentParser, why: str) -> None:
 
 def configure_check(p: argparse.ArgumentParser) -> None:
     add_common(p)
-    add_palette_args(p, default_auto=True)
+    add_palette_args(p)
     add_config_arg(p, "a missing build is urgent when the system skin is lumen")
     p.add_argument("--json", action="store_true", help="print the report as JSON")
 
@@ -290,7 +278,7 @@ def cmd_status(args: argparse.Namespace) -> int:
 
 def configure_status(p: argparse.ArgumentParser) -> None:
     add_common(p)
-    add_palette_args(p, default_auto=True)
+    add_palette_args(p)
     add_config_arg(p, "shown as the system skin")
     p.add_argument("--json", action="store_true", help="print the status as JSON")
 
@@ -333,14 +321,13 @@ def cmd_install_runtime(args: argparse.Namespace) -> int:
     sources = sources_from(args)
     owner = resolve_owner(args.owner, Path("/")) if args.owner != "auto" else (0, 0)
     return install_runtime(sources, Path(args.prefix), Log(quiet=args.quiet, verbose=args.verbose),
-                           dry_run=args.dry_run, force=args.force, palette=palette_mode(args),
-                           python=args.python, owner=owner)
+                           dry_run=args.dry_run, force=args.force, python=args.python, owner=owner)
 
 
 def configure_install_runtime(p: argparse.ArgumentParser) -> None:
     p.add_argument("--prefix", default=str(DEFAULT_PREFIX), help=f"where the runtime goes (default {DEFAULT_PREFIX})")
     add_source_args(p)
-    add_palette_args(p, default_auto=True)
+    add_palette_args(p)
     p.add_argument("--python", help="python3 the wrapper runs (default /usr/bin/python3)")
     p.add_argument("--owner", default="auto", help="owner of the files: 'auto' (root:root when run as root), "
                                                    "'user:group' or ''")

@@ -10,11 +10,13 @@
 
 $labels = [];
 $labels['lumen.palette_open'] = 'Open the command palette';
+$labels['lumen.palette_trigger'] = 'Jump to';
 $labels['lumen.palette_title'] = 'Command palette';
 $labels['lumen.palette_placeholder'] = 'Search folders, settings and actions';
 $labels['lumen.palette_empty'] = 'No matches';
-$labels['lumen.palette_results'] = '$n results';
+$labels['lumen.palette_results'] = 'Results: $n';
 $labels['lumen.palette_hint'] = 'Arrow keys to move, Enter to open, Esc to close';
+$labels['lumen.palette_current'] = 'current';
 $labels['lumen.palette_group_tasks'] = 'Go to';
 $labels['lumen.palette_group_folders'] = 'Folders';
 $labels['lumen.palette_group_settings'] = 'Settings';

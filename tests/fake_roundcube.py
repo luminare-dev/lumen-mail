@@ -1,7 +1,8 @@
 """A tiny FAKE Roundcube tree for the generator tests, written by us (no Roundcube file in it).
 
 It only has what the build and verify look at: RCMAIL_VERSION in program/include/iniset.php,
-a SUPPORTED_TYPES list in public_html/static.php, and a fake skins/elastic whose LESS defines
+a SUPPORTED_TYPES list in public_html/static.php, the core labels our wrapper registers in
+program/localization/en_US/labels.inc (dummy texts), and a fake skins/elastic whose LESS defines
 every Elastic variable name Lumen's LESS sets or reads (dummy values), whose templates contain
 the markers the drift check looks for, plus a few stand-in asset files.
 """
@@ -9,18 +10,22 @@ the markers the drift check looks for, plus a few stand-in asset files.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "generator"))
 
-from lumen_mail.elastic import our_variable_refs  # noqa: E402
+from lumen_mail.elastic import our_variable_refs, wrapper_core_labels  # noqa: E402
 
 STUB_COMPILER = ROOT / "tests" / "stub_compiler.py"
+# Every build includes the command palette; the tests use this stub instead of the Vite build.
+STUB_PALETTE = ROOT / "tests" / "fixtures" / "lumen-palette.js"
 FAKE_VERSION = "9.8.7"
 
 
@@ -36,6 +41,9 @@ def write(path: Path, text: str | bytes) -> Path:
 def make_roundcube(base: Path, version: str = FAKE_VERSION, static_php: bool = True) -> Path:
     rc = base / "roundcube"
     write(rc / "program/include/iniset.php", f"<?php\n// fake\ndefine('RCMAIL_VERSION', '{version}');\n")
+    labels = sorted({name for name, _rel in wrapper_core_labels(ROOT / "skin")})
+    write(rc / "program/localization/en_US/labels.inc",
+          "<?php\n$labels = [];\n" + "".join(f"$labels['{n}'] = 'fake {n}';\n" for n in labels))
     if static_php:
         write(rc / "public_html/static.php",
               "<?php\nconst SUPPORTED_TYPES = [\n    'css' => 'text/css',\n    'html' => 'text/html',\n"
@@ -84,3 +92,6 @@ class FakeTreeCase(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
         self.rc = make_roundcube(self.tmp)
         self.compiler = f"{sys.executable} {STUB_COMPILER}"
+        env = mock.patch.dict(os.environ, {"LUMEN_MAIL_PALETTE": str(STUB_PALETTE)})
+        env.start()
+        self.addCleanup(env.stop)

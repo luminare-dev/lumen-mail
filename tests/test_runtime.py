@@ -22,6 +22,7 @@ from lumen_mail.sources import Sources  # noqa: E402
 from lumen_mail.util import LumenError  # noqa: E402
 
 PINS = json.loads((ROOT / "package.json").read_text())["dependencies"]
+STUB_PALETTE = ROOT / "tests" / "fixtures" / "lumen-palette.js"
 
 
 def pkg(base: Path, name: str, version: str = "1.0.0", deps: dict | None = None, optional: dict | None = None) -> Path:
@@ -48,7 +49,7 @@ class RuntimeTest(unittest.TestCase):
         pkg(nm, "source-map")
         pkg(nm, "react")                              # a dev dependency: must not be copied
         (nm / ".bin").mkdir()
-        self.sources = Sources(ROOT, node_modules=nm, palette=self.tmp / "no-palette.js")
+        self.sources = Sources(ROOT, node_modules=nm, palette=STUB_PALETTE)
         self.prefix = self.tmp / "opt" / "lumen-mail"
 
     def install(self, **kw) -> int:
@@ -78,7 +79,9 @@ class RuntimeTest(unittest.TestCase):
             self.assertTrue((self.prefix / rel).is_file(), rel)
             self.assertIn(rel, manifest["files"])
         self.assertFalse((self.prefix / "node_modules" / "react").exists())
-        self.assertFalse((self.prefix / "palette").exists())
+        self.assertEqual((self.prefix / "palette" / "dist" / "lumen-palette.js").read_bytes(), STUB_PALETTE.read_bytes())
+        self.assertTrue(manifest["palette"])
+        self.assertIn("palette/dist/lumen-palette.js", manifest["files"])
         self.assertTrue(list((self.prefix / "generator" / "lumen_mail" / "__pycache__").glob("lifecycle.*.pyc")))
         wrapper = self.prefix / "bin" / "lumen-mail"
         self.assertTrue(os.access(wrapper, os.X_OK))
@@ -119,13 +122,13 @@ class RuntimeTest(unittest.TestCase):
         self.assertIn("dry run", out.getvalue())
         self.assertFalse(self.prefix.exists())
 
-    def test_palette_is_copied_when_present(self):
-        palette = self.tmp / "lumen-palette.js"
-        palette.write_text("/* palette */\n")
-        self.sources = Sources(ROOT, node_modules=self.tmp / "node_modules", palette=palette)
-        self.assertEqual(self.install(), 0)
-        self.assertTrue((self.prefix / "palette" / "dist" / "lumen-palette.js").is_file())
-        self.assertTrue(json.loads((self.prefix / MANIFEST).read_text())["palette"])
+    def test_the_prebuilt_palette_is_required(self):
+        # sync rebuilds from the runtime and never runs Vite: the runtime must carry the bundle.
+        self.sources = Sources(ROOT, node_modules=self.tmp / "node_modules", palette=self.tmp / "missing.js")
+        with self.assertRaises(LumenError) as ctx:
+            self.install()
+        self.assertIn("command palette bundle", ctx.exception.render())
+        self.assertFalse(self.prefix.exists())
 
 
 if __name__ == "__main__":

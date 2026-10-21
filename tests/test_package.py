@@ -34,7 +34,7 @@ class PackageTest(FakeTreeCase):
 
     def build(self, out_name="dist"):
         with redirect_stderr(io.StringIO()):
-            return package.build_package(self.rc, self.tmp / out_name, palette="none", compiler=self.compiler)
+            return package.build_package(self.rc, self.tmp / out_name, compiler=self.compiler)
 
     def test_archives_hold_one_lumen_folder_with_the_legal_files(self):
         tgz, zipf, sums = self.build()
@@ -105,7 +105,7 @@ class PackageTest(FakeTreeCase):
     def test_cli_build(self):
         out = io.StringIO()
         with redirect_stdout(out), redirect_stderr(io.StringIO()):
-            code = package.main(["build", "--roundcube", str(self.rc), "--out", str(self.tmp / "d"), "--no-palette",
+            code = package.main(["build", "--roundcube", str(self.rc), "--out", str(self.tmp / "d"),
                                  "--compiler", self.compiler])
         self.assertEqual(code, 0)
         self.assertIn(".tar.gz", out.getvalue())

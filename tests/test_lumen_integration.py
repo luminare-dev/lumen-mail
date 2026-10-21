@@ -64,9 +64,11 @@ class RealCompileTest(unittest.TestCase):
         base.mkdir(parents=True, exist_ok=True)
         cls.work = Path(tempfile.mkdtemp(prefix="it-", dir=base))
         cls.rc = Roundcube.at(RC_ROOT)
-        cls.sources = Sources.locate(ROOT)
-        cls.result = build(BuildOptions(roundcube=RC_ROOT, out=cls.work / "lumen", sources=cls.sources,
-                                        palette=False, quiet=True))
+        # The real palette bundle when it was built (or $LUMEN_MAIL_PALETTE), else the test stub.
+        palette = None if os.environ.get("LUMEN_MAIL_PALETTE") or (ROOT / "palette/dist/lumen-palette.js").is_file() \
+            else ROOT / "tests/fixtures/lumen-palette.js"
+        cls.sources = Sources.locate(ROOT, palette=palette)
+        cls.result = build(BuildOptions(roundcube=RC_ROOT, out=cls.work / "lumen", sources=cls.sources, quiet=True))
         cls.min_css = (cls.result.out / "styles/styles.min.css").read_text(encoding="utf-8")
         report = {"roundcube": cls.rc.version(), "sizes": cls.result.sizes,
                   "compiler": cls.result.stamp.get("compiler")}
