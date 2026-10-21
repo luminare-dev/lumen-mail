@@ -12,7 +12,15 @@ import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent
 import { collect } from "./collect";
 import { highlight, search } from "./fuzzy";
 import { translator } from "./i18n";
-import { deepActiveElement, inEditor, isApplePlatform, isToggleKey, usePageState, type NavigatorLike } from "./page";
+import {
+  deepActiveElement,
+  inEditor,
+  isApplePlatform,
+  isToggleKey,
+  modalDialogOpen,
+  usePageState,
+  type NavigatorLike,
+} from "./page";
 import type { Item, Rcmail } from "./types";
 
 const PAGE_STEP = 8;
@@ -104,12 +112,14 @@ export function Palette({ rc, doc = document, trigger = null, getItems = collect
   );
 
   // Ctrl+K / Cmd+K on the page and in same-origin frames (message preview, settings forms),
-  // except while the focus is in a text editor.
+  // except while the focus is in a text editor or a Roundcube modal dialog is open (the shortcut
+  // then stays with the dialog's own fields).
   useEffect(() => {
     const win = doc.defaultView;
     if (!win) return undefined;
     const onKey = (event: KeyboardEvent) => {
       if (event.isComposing || !isToggleKey(event, apple) || inEditor(event)) return;
+      if (!openRef.current && modalDialogOpen(doc, event)) return;
       event.preventDefault();
       event.stopPropagation();
       toggle();
@@ -151,11 +161,13 @@ export function Palette({ rc, doc = document, trigger = null, getItems = collect
     if (!trigger) return undefined;
     const onClick = (event: Event) => {
       event.preventDefault();
+      if (!openRef.current && modalDialogOpen(doc)) return;
       toggle(trigger);
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === " ") {
         event.preventDefault();
+        if (!openRef.current && modalDialogOpen(doc)) return;
         toggle(trigger);
       }
     };
@@ -165,7 +177,7 @@ export function Palette({ rc, doc = document, trigger = null, getItems = collect
       trigger.removeEventListener("click", onClick);
       trigger.removeEventListener("keydown", onKeyDown);
     };
-  }, [trigger, toggle]);
+  }, [trigger, toggle, doc]);
 
   useEffect(() => {
     trigger?.setAttribute("aria-expanded", String(open));

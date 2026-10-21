@@ -81,6 +81,39 @@ describe("opening and closing", () => {
     await open(user);
   });
 
+  it("stays closed while a Roundcube modal dialog is open, so the dialog keeps its keys", async () => {
+    const trigger = document.createElement("a");
+    trigger.href = "#";
+    document.body.append(trigger);
+    const { user } = setup(fakeRcmail(), trigger);
+    const field = document.createElement("input");
+    const dialog = document.createElement("div");
+    dialog.className = "ui-dialog";
+    dialog.append(field);
+    const overlay = document.createElement("div");
+    overlay.className = "ui-widget-overlay";
+    document.body.append(dialog, overlay);
+    // what jQuery UI does for a modal dialog: focus anywhere else goes back into it
+    const refocus = (event: FocusEvent) => {
+      if (!(event.target as Element).closest?.(".ui-dialog")) field.focus();
+    };
+    document.addEventListener("focusin", refocus);
+    try {
+      field.focus();
+      await user.keyboard("{Control>}k{/Control}");
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(document.activeElement).toBe(field);
+      fireEvent.click(trigger);
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    } finally {
+      document.removeEventListener("focusin", refocus);
+    }
+    overlay.remove();
+    dialog.remove();
+    expect(await open(user)).toBeTruthy();
+  });
+
   it("closes with Escape and gives the focus back", async () => {
     const { user } = setup();
     const subject = document.getElementById("subject")!;

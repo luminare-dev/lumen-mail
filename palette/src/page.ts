@@ -86,3 +86,19 @@ export function inEditor(event: Event): boolean {
   // Duck-typed: events from a frame's document carry that frame's Element class.
   return Boolean(target && typeof target.closest === "function" && target.closest(EDITOR));
 }
+
+/**
+ * A Roundcube modal dialog is open (jQuery UI adds .ui-widget-overlay for modal dialogs, such as
+ * Create folder). jQuery UI pulls the focus back into its dialog from anywhere outside it, so a
+ * palette opened over one could not be used: its keys would reach the hidden dialog. Checks the
+ * page and the document the key was pressed in (a frame).
+ */
+export function modalDialogOpen(doc: Document, event?: Event): boolean {
+  const docs = new Set<Document>([doc]);
+  const target = event?.target as Node | null | undefined;
+  if (target?.ownerDocument) docs.add(target.ownerDocument);
+  for (const d of docs) {
+    if (d.querySelector(".ui-widget-overlay")) return true;
+  }
+  return false;
+}

@@ -177,7 +177,7 @@ reporting.
 - The command palette appears on pages after login only, not on the login, print and error pages,
   in frames or in the external compose window. Its folder list covers the folders Roundcube
   lists in the mail task; elsewhere it offers Inbox.
-- The palette bundles React: 72.1 KB gzip, of which React and React DOM are 65.9 KB.
+- The palette bundles React: 72.3 KB gzip (74,013 bytes, 2026-10-22), of which React and React DOM are 65.9 KB.
 - Only Roundcube 1.7.3 has been tested.
 - As the system skin, Lumen depends on `skins/lumen` being present. An update that removes the
   Roundcube folder (KeyHelp does) shows error pages until the sync unit has restored it; without

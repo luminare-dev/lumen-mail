@@ -15,7 +15,8 @@ const version = readFileSync(new URL("../version.txt", import.meta.url), "utf8")
 // checkout it builds from (scripts/palette-inputs.mjs).
 const BANNER =
   `/*! lumen-mail ${version} command palette | MIT | https://github.com/luminare-dev/lumen-mail | ` +
-  "includes React and React DOM (MIT, Copyright (c) Meta Platforms, Inc. and affiliates) | " +
+  "includes React, React DOM and scheduler (MIT, Copyright (c) Meta Platforms, Inc. and affiliates; " +
+  "licence texts: THIRD_PARTY_NOTICES.md) | " +
   `sources ${paletteInputsDigest(root)} */\n`;
 
 // The banner is added after minification (the minifier drops output banners).
