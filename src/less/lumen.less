@@ -160,7 +160,11 @@ html:not(.touch) .listing li > a:focus-visible {
             color: var(--lm-rail-danger) !important;
         }
 
+        // Elastic pins this block with a physical left: 0, so on a page with dir="rtl" it left
+        // the rail and sat on the far side of the screen; logical insets keep it under the rail.
         #taskmenu .special-buttons {
+            inset-inline-start: 0;
+            inset-inline-end: auto;
             background-color: var(--lm-rail);
         }
 

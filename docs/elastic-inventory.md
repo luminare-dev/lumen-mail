@@ -74,4 +74,4 @@ on resize and on colour-mode changes. It sets `layout-large|normal|small|phone` 
 | Dark mode fixes | same selectors as Elastic's dark rules for: plain links, `.btn-link`, primary button text, floating action button, editor dialog, date picker highlight, active toolbar toggle, search bar toggle, flagged rows, tabs | Elastic uses a light-mode variable there, which fails contrast on Night with Lumen's palette |
 | Logo and favicon | `lumen.js`, `meta.json` `config.favicon` | see ADR 0006 |
 | Reduced motion | transitions off under `prefers-reduced-motion: reduce` | spinners keep running (they show progress) |
-| RTL | logical properties in `lumen.less` | Roundcube does not set `dir="rtl"` for Elastic; our rules hold if a page or the gallery does |
+| RTL | logical properties in `lumen.less`; `#taskmenu .special-buttons` gets `inset-inline-start: 0; inset-inline-end: auto` | Roundcube does not set `dir="rtl"` for Elastic; our rules hold if a page or the gallery does. Elastic pins the menu's bottom block with a physical `left: 0`, which put it on the far side of a forced-RTL page; the logical insets keep it under the rail |
