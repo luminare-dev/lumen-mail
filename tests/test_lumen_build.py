@@ -67,6 +67,12 @@ class BuildTest(FakeTreeCase):
         self.assertIn("Aleksander Machniak and The Roundcube Dev Team", readme)
         self.assertNotIn("$", readme)
 
+    def test_the_banner_fits_a_server_build_and_a_release_package(self):
+        head = (self.build().out / "styles/styles.min.css").read_text(encoding="utf-8")[:900]
+        self.assertIn(" * Compiled from two sources:", head)
+        self.assertNotIn("on this server", head, "release packages are compiled in CI")
+        self.assertIn("licensed under CC BY-SA 3.0", head)
+
     def test_stamp_contents(self):
         result = self.build()
         stamp = json.loads((result.out / STAMP_NAME).read_text())
@@ -212,6 +218,19 @@ class DriftTest(FakeTreeCase):
         with self.assertRaises(DriftError) as ctx:
             self.build()
         self.assertIn("program/localization/en_US/labels.inc is missing", ctx.exception.render())
+
+    def test_a_plugin_or_an_outside_data_uri_in_elastic_is_named(self):
+        widgets = self.rc / "skins/elastic/styles/widgets/buttons.less"
+        widgets.write_text(widgets.read_text() + '// @plugin "commented";\n@plugin "evil";\n'
+                           '.x { background: data-uri("image/svg+xml", "../../../../etc/hostname"); }\n'
+                           '.y { background: data-uri("../images/fake.svg"); }\n')
+        with self.assertRaises(DriftError) as ctx:
+            self.build()
+        text = ctx.exception.render()
+        self.assertIn("skins/elastic/styles/widgets/buttons.less:3 has an @plugin rule", text)
+        self.assertIn("embeds '../../../../etc/hostname' with data-uri()", text)
+        self.assertNotIn("fake.svg", text)
+        self.assertNotIn(":2 has an @plugin", text, "comments are ignored")
 
     def test_elastic_styles_css_would_shadow_ours(self):
         write(self.rc / "skins/elastic/styles/styles.css", "/* new */")

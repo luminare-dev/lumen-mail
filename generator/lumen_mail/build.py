@@ -58,7 +58,7 @@ PALETTE_FILE = "lumen-palette.js"
 # THIRD_PARTY_NOTICES.md carries React's MIT licence for the bundled command palette.
 LEGAL_FILES = ("LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md")
 BANNER = """/*! Lumen {lumen_version} for Roundcube Webmail {roundcube_version}: {name}
- * Compiled on this server from two sources:
+ * Compiled from two sources:
  *  - the Roundcube "Elastic" skin by Aleksander Machniak and The Roundcube Dev Team,
  *    licensed under CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/);
  *  - the Lumen sources, Copyright (c) 2026 Paul Pasaurek, MIT licence ({project_url}).
