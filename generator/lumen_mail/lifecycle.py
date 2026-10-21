@@ -248,8 +248,14 @@ class Lifecycle:
         return " ".join(parts)
 
     def extracted(self) -> bool:
-        """The Roundcube tree is there again (enough to restore a build into it)."""
-        return all((self.roundcube / rel).is_file() for rel in EXTRACTED_FILES)
+        """The Roundcube tree is there again (enough to restore a build into it). A file counts
+        only once this user can read it: KeyHelp extracts as root, and tar keeps each folder and
+        file root-only until it sets the final owner and mode."""
+        return not self.not_extracted()
+
+    def not_extracted(self) -> list[str]:
+        return [rel for rel in EXTRACTED_FILES
+                if not (os.path.isfile(self.roundcube / rel) and os.access(self.roundcube / rel, os.R_OK))]
 
     def fingerprint(self) -> tuple:
         out: list = []
@@ -654,15 +660,27 @@ class Lifecycle:
             raise LumenError(f"{self.roundcube} does not exist (--roundcube)")
         with self.lock():
             self.cleanup_leftovers()
-            code = EXIT_OK
-            for _ in range(MAX_PASSES):
+            deadline = self.clock() + self.wait
+            passes = 0
+            while True:
                 before = self.fingerprint()
-                code = self._sync_pass(rebuild)
+                try:
+                    code = self._sync_pass(rebuild)
+                except PermissionError as exc:
+                    # An update that extracts as root leaves files root-only for a moment.
+                    if self.clock() >= deadline:
+                        raise LumenError(f"cannot read {exc.filename or 'a Roundcube file'}: {exc.strerror}",
+                                         [f"the user lumen-mail runs as must be able to read {self.roundcube}"]) \
+                            from exc
+                    self.log.info(f"{exc.filename} is not readable yet (an update may still be extracting); "
+                                  "checking again")
+                    self.sleep(SETTLE_POLL_SECONDS)
+                    continue
                 rebuild = False
-                if code != EXIT_OK or self.fingerprint() == before:
+                passes += 1
+                if code != EXIT_OK or self.fingerprint() == before or passes >= MAX_PASSES:
                     return code
                 self.log.info("the Roundcube tree changed during this run; checking again")
-            return code
 
     def _sync_dry_run(self, rebuild: bool) -> int:
         code, report = self.check()
@@ -717,12 +735,12 @@ class Lifecycle:
         state = SyncState.load(self.state)
         deadline = self.clock() + self.wait
         if not self._wait_until(self.extracted, deadline):
-            missing = ", ".join(rel for rel in EXTRACTED_FILES if not (self.roundcube / rel).is_file())
+            missing = ", ".join(self.not_extracted()) + " missing or not readable"
             if self.system_skin_is_lumen():
                 return self._down(f"the Roundcube tree at {self.roundcube} is still incomplete after {self.wait:g} s "
-                                  f"({missing} missing), so no build can be put back; the next run checks again")
+                                  f"({missing}), so no build can be put back; the next run checks again")
             self.log.warning(f"the Roundcube tree at {self.roundcube} is still incomplete after {self.wait:g} s "
-                             f"({missing} missing); next run checks again")
+                             f"({missing}); next run checks again")
             return EXIT_TEMPFAIL
         skin_problems = integrity_problems(self.skin_dir)
         outage = False

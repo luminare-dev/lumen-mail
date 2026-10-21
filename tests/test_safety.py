@@ -335,6 +335,46 @@ class OutageTest(LifecycleCase):
         self.assertIn("webmail is down", self.logbuf.getvalue())
 
 
+class ExtractionWindowTest(LifecycleCase):
+    """KeyHelp extracts as root: for a moment folders and files are root-only for the unit's user."""
+
+    def test_unreadable_files_do_not_count_as_extracted(self):
+        real = os.access
+        footer = str(self.rc / "skins/elastic/templates/includes/footer.html")
+        with mock.patch("lumen_mail.lifecycle.os.access", side_effect=lambda p, m: False if str(p) == footer
+                        else real(p, m)):
+            self.assertFalse(self.lc().extracted())
+            self.assertIn("skins/elastic/templates/includes/footer.html", self.lc().not_extracted())
+        self.assertTrue(self.lc().extracted())
+
+    def test_a_root_only_file_during_the_extraction_is_waited_for(self):
+        self.install()
+        before = read_stamp(self.skin)
+        self.simulate_keyhelp_update()
+        from lumen_mail.roundcube import Roundcube
+        real = Roundcube.version
+        calls = {"n": 0}
+
+        def version(rc):
+            calls["n"] += 1
+            if calls["n"] <= 2:
+                raise PermissionError(13, "Permission denied", str(self.rc / "program/include/iniset.php"))
+            return real(rc)
+
+        with mock.patch.object(Roundcube, "version", version):
+            self.assertEqual(self.lc().sync(), EXIT_OK, self.logbuf.getvalue())
+        self.assertEqual(read_stamp(self.skin), before)
+        self.assertGreater(calls["n"], 2)
+
+    def test_a_lasting_permission_problem_ends_with_a_clear_error(self):
+        self.install()
+        from lumen_mail.roundcube import Roundcube
+        with mock.patch.object(Roundcube, "version", side_effect=PermissionError(13, "Permission denied", "/x")):
+            with self.assertRaises(LumenError) as ctx:
+                self.lc(wait=0.3).sync(rebuild=True)
+        self.assertIn("cannot read /x", str(ctx.exception))
+
+
 class DeferralAndRecheckTest(LifecycleCase):
     def test_a_long_deferral_is_logged_as_a_warning_every_six_hours(self):
         self.install()
