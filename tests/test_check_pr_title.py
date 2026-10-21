@@ -42,6 +42,13 @@ class TitleTest(unittest.TestCase):
             with self.subTest(title=title):
                 self.assertTrue(any(p.startswith("wording") for p in pt.problems(title)))
 
+    def test_dependabot_bump_is_accepted_only_from_dependabot(self):
+        title = "ci(deps): Bump the actions group with 4 updates"
+        self.assertEqual(pt.problems(title, "dependabot[bot]"), [])
+        self.assertTrue(pt.problems(title, "someone"))
+        self.assertTrue(pt.problems(title))
+        self.assertTrue(pt.problems("build(deps): Update vite", "dependabot[bot]"))
+
     def test_cli(self):
         with redirect_stdout(io.StringIO()):
             self.assertEqual(pt.main(["fix: correct the retry delay"]), 0)

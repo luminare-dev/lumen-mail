@@ -120,4 +120,5 @@ jobs:
       - name: Conventional Commit title with offer-free wording
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
         run: python3 scripts/check_pr_title.py

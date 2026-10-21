@@ -6,8 +6,11 @@ release-please builds the changelog and release notes from it. The title must th
   * follow Conventional Commits with one of the allowed types (see TYPES);
   * pass the wording check from scripts/forbidden_words.py (offer-free release notes).
 
+Dependabot sometimes starts its titles with "Bump" (capital B) even with a lower-case commit
+prefix. For pull requests opened by dependabot[bot] (PR_AUTHOR) exactly that word is accepted.
+
 Usage: python3 scripts/check_pr_title.py "feat(backup): add a restore drill"
-       PR_TITLE="..." python3 scripts/check_pr_title.py      (how CI calls it)
+       PR_TITLE="..." PR_AUTHOR="..." python3 scripts/check_pr_title.py      (how CI calls it)
 Exit codes: 0 ok, 1 rejected, 2 no title given.
 """
 
@@ -26,9 +29,10 @@ from forbidden_words import check_string  # noqa: E402
 TYPES = ("feat", "fix", "docs", "refactor", "perf", "test", "style", "build", "ci", "chore", "revert", "security")
 TITLE_RE = re.compile(r"^(?P<type>[a-z]+)(?:\((?P<scope>[a-z0-9][a-z0-9._/-]*)\))?(?P<bang>!)?: (?P<subject>\S.*)$")
 MAX_LENGTH = 100
+DEPENDABOT = "dependabot[bot]"
 
 
-def problems(title: str) -> list[str]:
+def problems(title: str, author: str = "") -> list[str]:
     title = title.strip()
     out: list[str] = []
     m = TITLE_RE.match(title)
@@ -41,7 +45,8 @@ def problems(title: str) -> list[str]:
         subject = m.group("subject")
         if subject.endswith("."):
             out.append("the summary must not end with a full stop")
-        if subject[:1].isupper() and not subject.split()[0].isupper():
+        dependabot_bump = author == DEPENDABOT and subject.split()[0] == "Bump"
+        if subject[:1].isupper() and not subject.split()[0].isupper() and not dependabot_bump:
             out.append("the summary must start with a lower-case letter (imperative mood: 'add', 'fix')")
     if len(title) > MAX_LENGTH:
         out.append(f"the title is {len(title)} characters long; keep it to {MAX_LENGTH}")
@@ -55,7 +60,7 @@ def main(argv: list[str] | None = None) -> int:
     if not title.strip():
         print("error: no pull request title given", file=sys.stderr)
         return 2
-    found = problems(title)
+    found = problems(title, os.environ.get("PR_AUTHOR", ""))
     for prob in found:
         print(f"error: {prob}")
     if not found:
