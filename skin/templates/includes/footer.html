@@ -1,0 +1,30 @@
+<roundcube:if condition="!env:framed && !env:extwin" />
+<script src="/lumen.js" data-src-app="/images/luminare-mark.svg" data-src-login="/images/luminare-lockup-horizontal-dark.svg" data-src-compact="/images/luminare-lockup-compact-dark.svg"></script>
+<!--lumen:palette-->
+<roundcube:if condition="env:task != 'login' && env:action != 'print' && !env:server_error" />
+<roundcube:add_label name="lumen.palette_open" />
+<roundcube:add_label name="lumen.palette_title" />
+<roundcube:add_label name="lumen.palette_placeholder" />
+<roundcube:add_label name="lumen.palette_empty" />
+<roundcube:add_label name="lumen.palette_results" />
+<roundcube:add_label name="lumen.palette_hint" />
+<roundcube:add_label name="lumen.palette_group_tasks" />
+<roundcube:add_label name="lumen.palette_group_folders" />
+<roundcube:add_label name="lumen.palette_group_settings" />
+<roundcube:add_label name="lumen.palette_group_actions" />
+<roundcube:add_label name="mail" />
+<roundcube:add_label name="contacts" />
+<roundcube:add_label name="settings" />
+<roundcube:add_label name="compose" />
+<roundcube:add_label name="checkmail" />
+<roundcube:add_label name="search" />
+<roundcube:add_label name="inbox" />
+<roundcube:add_label name="about" />
+<roundcube:add_label name="logout" />
+<roundcube:add_label name="darkmode" />
+<roundcube:add_label name="lightmode" />
+<script src="/lumen-palette.js" defer></script>
+<roundcube:endif />
+<!--/lumen:palette-->
+<roundcube:endif />
+<roundcube:include file="includes/footer.html" skinpath="skins/elastic" />

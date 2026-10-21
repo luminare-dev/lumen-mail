@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title></title>
+<!-- Lumen skin: empty content frame. Copyright (c) 2026 Paul Pasaurek, MIT licence. -->
+<style>
+html, body { height: 100%; margin: 0; overflow: hidden; }
+body {
+  background-color: #FFFFFF;
+  background-image: url(images/luminare-mark-brand-deep.svg);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: auto 18%;
+}
+body::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: rgb(255 255 255 / 88%);
+}
+html.dark-mode body {
+  background-color: #0A1224;
+  background-image: url(images/luminare-mark.svg);
+}
+html.dark-mode body::before {
+  background-color: rgb(10 18 36 / 86%);
+}
+</style>
+<script>
+  try {
+    var parentDark = window.parent !== window && window.parent.document.documentElement.classList.contains('dark-mode');
+    if (parentDark || (window.parent === window && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark-mode');
+    }
+  } catch (e) { /* cross-origin parent: keep light, ui.js sets the class after load */ }
+</script>
+</head>
+<body></body>
+</html>

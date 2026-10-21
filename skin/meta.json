@@ -1,0 +1,19 @@
+{
+	"name": "Lumen",
+	"author": "Luminare Development",
+	"url": "https://luminare.tech",
+	"license": "MIT (source); compiled CSS CC BY-SA 3.0 (adaptation of Elastic)",
+	"license-url": "https://github.com/luminare-dev/lumen-mail#licence",
+	"extends": "elastic",
+	"localization": true,
+	"config": {
+		"favicon": "/images/luminare-favicon.ico"
+	},
+	"meta": {
+		"theme-color": [
+			{"content": "#F3F6FB", "media": "(prefers-color-scheme: light)"},
+			{"content": "#0A1224", "media": "(prefers-color-scheme: dark)"}
+		],
+		"msapplication-navbutton-color": "#0A1224"
+	}
+}
