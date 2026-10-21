@@ -55,8 +55,10 @@ If the path unit misses an update, the timer runs the same service within 2 minu
 ## What one run does
 
 1. **Wait for the tree.** Poll every 50 ms until `program/include/iniset.php`,
-   `skins/elastic/meta.json` and `skins/elastic/templates/includes/footer.html` exist again (step 2
-   has extracted Elastic's templates). Up to 300 s, then exit 75 (exit 1 and "webmail is down" at
+   `skins/elastic/meta.json` and `skins/elastic/templates/includes/footer.html` exist again and
+   the service's user can read them (step 2 has extracted Elastic's templates; tar, running as
+   root, keeps each folder and file root-only until it sets the final owner and mode, and a pass
+   that meets such a file waits and checks again). Up to 300 s, then exit 75 (exit 1 and "webmail is down" at
    error level if the system skin is lumen). The footer matters: Lumen's footer wrapper includes
    Elastic's, and without it Roundcube's include would find the wrapper itself and recurse until
    PHP stops, a fatal error on every page instead of Roundcube's own error page.
