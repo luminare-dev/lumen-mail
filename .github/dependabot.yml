@@ -1,8 +1,15 @@
 # Dependabot version updates (https://docs.github.com/en/code-security/dependabot).
-# Keeps the SHA pins of the workflow actions and their "# vX.Y.Z" comments current, and the
-# hash-pinned Python tools in requirements-dev.txt. A 7-day cooldown lets a bad release surface
-# before it lands here. The pinned gitleaks and actionlint downloads (version + sha256 inputs in
-# the reusable workflows) are not seen by Dependabot; bump them by hand (PUBLISHING.md, monthly).
+# Keeps the SHA pins of the workflow actions and their "# vX.Y.Z" comments current, the
+# hash-pinned Python tools in requirements-dev.txt and the pinned npm packages (the LESS compiler
+# and minifier the skin is built with). A 7-day cooldown lets a bad release surface before it
+# lands here. The pinned gitleaks and actionlint downloads (version + sha256 inputs in the
+# reusable workflows) and the Roundcube release in ci.yml (version + sha256) are not seen by
+# Dependabot; bump them by hand (PUBLISHING.md, monthly).
+#
+# Pull request titles must pass the pr-title check (Conventional Commits): the prefix carries the
+# type and scope, so the titles read "ci(deps): ..." and "build(deps): ...". Dependabot writes
+# "Bump" with a capital letter in some titles; scripts/check_pr_title.py accepts exactly that word
+# for pull requests opened by dependabot[bot].
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -13,8 +20,7 @@ updates:
     cooldown:
       default-days: 7
     commit-message:
-      prefix: ci
-      include: scope
+      prefix: ci(deps)
     labels: [dependencies]
     groups:
       actions:
@@ -28,9 +34,23 @@ updates:
     cooldown:
       default-days: 7
     commit-message:
-      prefix: build
-      include: scope
+      prefix: build(deps)
     labels: [dependencies]
     groups:
       dev-tools:
         patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: build(deps)
+    labels: [dependencies]
+    open-pull-requests-limit: 5
+    groups:
+      css-compiler:
+        patterns: ["less", "clean-css"]

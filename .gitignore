@@ -2,12 +2,17 @@
 __pycache__/
 *.pyc
 .venv/
-# Release build output (scripts/package_release.py)
+# Build output (generator, palette, gallery, release packages)
 dist/
+build/
+palette/dist/
+gallery/dist/
 # Local tool installs
 node_modules/
+# Local scratch output (tests, manual builds)
+.scratch/
 # Never commit environment files or server configs with keys
 .env
 .env.*
 !.env.example
-server.cfg
+config.inc.php

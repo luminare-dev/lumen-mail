@@ -2,70 +2,74 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/brand/readme-header-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="docs/brand/readme-header-light.svg">
-  <img alt="{{PROJECT_TITLE}}" src="docs/brand/readme-header-light.svg">
+  <img alt="lumen-mail" src="docs/brand/readme-header-light.svg">
 </picture>
 
 <!-- byline:studio -->
-*a [Luminare Development](https://luminare.tech/open-source/{{SLUG}}/) open-source project*
+*a [Luminare Development](https://luminare.tech/open-source/lumen-mail/) open-source project*
 <!-- /byline:studio -->
 <!-- byline:personal
-*by {{AUTHOR_NAME}} · [project page](https://luminare.tech/open-source/{{SLUG}}/)*
+*by Paul Pasaurek · [project page](https://luminare.tech/open-source/lumen-mail/)*
 /byline:personal -->
 <!-- header:end -->
 
-<!-- template-only:begin -->
-> [!NOTE]
-> **This repository is a template.** Every open-source repository of the
-> [luminare-dev](https://github.com/luminare-dev) organization starts from it: README skeleton,
-> NOTICE, docs skeleton, licence texts, pinned CI, secret scanning, OpenSSF Scorecard and release
-> automation with checksums and build provenance. Create a repository with **Use this template**,
-> then follow [PUBLISHING.md](PUBLISHING.md), part A. Values in double curly braces are
-> placeholders listed in [PLACEHOLDERS.md](PLACEHOLDERS.md); CI fails until each one is filled.
-> Delete this note, with its two marker comments, in the new repository.
-<!-- template-only:end -->
+# lumen-mail
 
-# {{PROJECT_TITLE}}
+A modern Luminare skin for Roundcube Webmail: a real Roundcube skin called **Lumen** that extends
+Elastic, compiled on your server from the Elastic sources installed there.
 
-{{ONE_LINE_PURPOSE}}
-
-[![ci](https://github.com/luminare-dev/{{SLUG}}/actions/workflows/ci.yml/badge.svg)](https://github.com/luminare-dev/{{SLUG}}/actions/workflows/ci.yml)
-[![release](https://img.shields.io/github/v/release/luminare-dev/{{SLUG}}?sort=semver)](https://github.com/luminare-dev/{{SLUG}}/releases)
-[![licence](https://img.shields.io/github/license/luminare-dev/{{SLUG}})](LICENSE)
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/luminare-dev/{{SLUG}}/badge)](https://scorecard.dev/viewer/?uri=github.com/luminare-dev/{{SLUG}})
-
-<!-- template: GIF slot. Record a short GIF (or a screenshot) in your own lab: no player data, no
-     hostnames or IP addresses, no game art. Save it as docs/media/demo.gif and replace this
-     comment with the line below. Delete the comment if there is nothing to show.
-     ![One sentence that says what the GIF shows](docs/media/demo.gif) -->
+[![ci](https://github.com/luminare-dev/lumen-mail/actions/workflows/ci.yml/badge.svg)](https://github.com/luminare-dev/lumen-mail/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/luminare-dev/lumen-mail?sort=semver)](https://github.com/luminare-dev/lumen-mail/releases)
+[![licence](https://img.shields.io/github/license/luminare-dev/lumen-mail)](LICENSE)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/luminare-dev/lumen-mail/badge)](https://scorecard.dev/viewer/?uri=github.com/luminare-dev/lumen-mail)
 
 ## Why
 
-{{PROBLEM_STATEMENT}}
-
-<!-- template: 2-4 sentences. Who runs into the problem, what this project does about it, and what
-     it shows in words a reader searches for (for example "Ansible collection with Molecule-tested,
-     idempotent roles"). Facts only; every claim must be reproducible from this repository. -->
+Elastic is a solid, accessible skin, and every Roundcube installation has it. Restyling it usually
+means forking its templates and LESS, which goes stale with the next Roundcube update and turns the
+fork into a CC BY-SA adaptation. lumen-mail keeps only its own code: Elastic variable overrides, a
+small component layer, one wrapper template and a generator that compiles the skin against
+whatever Elastic is installed, checks first that everything it relies on still exists, and stops
+with the exact name of what changed if an update moved something.
 
 ## Quickstart
 
 ```bash
-{{QUICKSTART_COMMANDS}}
+git clone https://github.com/luminare-dev/lumen-mail.git && cd lumen-mail
+npm ci --omit=dev --ignore-scripts
+PYTHONPATH=generator python3 -m lumen_mail build --roundcube /var/www/roundcube --out /tmp/lumen --no-palette
+PYTHONPATH=generator python3 -m lumen_mail verify /tmp/lumen --roundcube /var/www/roundcube
+sudo cp -a /tmp/lumen /var/www/roundcube/skins/lumen
 ```
 
-<!-- template: at most 5 commands, copy-paste ready, tested on a clean machine. Longer setups go
-     to docs/install.md. -->
+Then select it: `$config['skin'] = 'lumen';` in `config/config.inc.php` for everybody, or
+**Settings → Preferences → User Interface → Interface skin** for one user. On KeyHelp the field is
+**Configuration → Webmail → Interface skin**. Details, a dry run and how to remove it:
+[docs/install.md](docs/install.md).
 
 ## How it works
 
 ```mermaid
 flowchart LR
-    operator(["Operator"]) -->|"runs"| project["{{PROJECT_TITLE}}"]
-    project -->|"changes"| target[("{{TARGET_SYSTEM}}")]
-    ci["CI: lint, tests, secret scan"] -.->|"checks every change"| project
+    elastic[("skins/elastic<br>LESS + templates")] -->|"read only"| gen["lumen_mail build"]
+    ours["src/less + skin/<br>(this repository)"] --> gen
+    gen -->|"drift check"| gen
+    gen -->|"less + clean-css"| css["styles.css<br>embed.css"]
+    css --> skin[("skins/lumen<br>extends elastic")]
+    gen -->|"verify, stamp"| skin
+    skin -->|"system or user skin"| rc["Roundcube Webmail"]
 ```
 
-<!-- template: replace the diagram with the real flow (5-9 boxes). GitHub renders Mermaid; the
-     project page turns it into a static SVG. -->
+- **A skin, not a plugin.** `skins/lumen/meta.json` says `"extends": "elastic"`, so Roundcube
+  uses Elastic's templates and scripts for everything Lumen does not have.
+- **Compiled on the server.** The build points a temporary mirror tree at the installed
+  `skins/elastic`, compiles Elastic's `styles.less` with Lumen's tokens, variable overrides and
+  component layer after it, adds a cache-buster to every `url()`, checks that each target exists
+  and is served, and adds the licence banner.
+- **One wrapper template.** `templates/includes/footer.html` adds Lumen's scripts and includes
+  Elastic's footer with `skinpath="skins/elastic"`; no Elastic template is copied.
+- **Safe after updates.** `lumen-build.stamp` records the Roundcube version, a digest of Elastic's
+  LESS and templates and the sha256 of every file, so `verify` knows when a rebuild is due.
 
 ## Design decisions
 
@@ -75,68 +79,86 @@ The decisions behind this project are recorded as short ADRs in [docs/adr/](docs
 - [ADR 0002: Pin every action and downloaded tool](docs/adr/0002-pin-actions-and-downloaded-tools.md)
 - [ADR 0003: Secret scanning with the gitleaks binary](docs/adr/0003-secret-scanning-with-the-gitleaks-binary.md)
 - [ADR 0004: Draft releases with checksums and provenance](docs/adr/0004-draft-releases-with-checksums-and-provenance.md)
+- [ADR 0005: A skin that extends Elastic, compiled on the server](docs/adr/0005-a-skin-that-extends-elastic-built-on-the-server.md)
+- [ADR 0006: Swap Elastic's default logo at run time](docs/adr/0006-swap-the-logo-at-run-time.md)
+- [ADR 0007: Sora as WOFF, and a stamp file that is not served](docs/adr/0007-sora-as-woff-and-a-stamp-that-is-not-served.md)
 
-<!-- template: ADRs 0001-0004 come with the template and describe its CI and release design.
-     Add the project's own decisions from 0005 on, one line each ("Why X instead of Y"). Add an
-     "Alternatives" paragraph when similar projects exist: what they do well and why this project
-     differs. Stay factual and friendly; never belittle another project. -->
+What Lumen changes in Elastic, and why, is listed in
+[docs/elastic-inventory.md](docs/elastic-inventory.md); every text and UI colour pair is in
+[docs/contrast.md](docs/contrast.md).
+
+**Alternatives.** Elastic itself documents `_variables.less` and `_styles.less` for local colour
+changes; that works well for one server but lives inside `skins/elastic`, which an update
+replaces. A full fork of a skin gives total control at the cost of following every Roundcube
+release by hand. lumen-mail sits in between: Elastic's structure, our look, rebuilt on demand.
 
 ## Supported versions
 
 | Component | Tested with | Supported |
 |---|---|---|
-| {{COMPONENT}} | {{TESTED_VERSION}} | {{SUPPORTED_RANGE}} |
+| Roundcube Webmail (Elastic skin) | 1.7.3 | the build runs on any Roundcube whose Elastic passes the drift check; tested only with 1.7.3 |
+| Node.js (build only) | 22.23 | 20 or later |
+| Python (generator) | 3.12 | 3.12; the code needs 3.10 or later and only the standard library |
+| Browsers | as Elastic | the last two versions of Chrome, Edge, Firefox and Safari |
 
 Fixes go into the latest minor release only. See the
 [security policy](https://github.com/luminare-dev/.github/blob/main/SECURITY.md) for reporting.
 
 ## Limitations
 
-- {{LIMITATION}}
-
-<!-- template: what it does not do, known rough edges, and what it was never tested on. -->
+- Plugins keep their own Elastic styles (for example the managesieve and password forms); they
+  pick up Lumen's colours only where they use Elastic's classes.
+- In Roundcube's `devel_mode`, Elastic's `layout.html` loads Elastic's LESS in the browser, so the
+  page shows plain Elastic.
+- The Luminare logo is set by a script before Elastic's UI starts; without JavaScript the logo
+  area stays empty (Roundcube itself needs JavaScript).
+- Roundcube does not set `dir="rtl"` for Elastic; Lumen's own rules use logical properties, but
+  Elastic's layout stays left-to-right.
+- Message bodies keep their senders' colours.
+- Only Roundcube 1.7.3 has been tested.
 
 ## Results
 
 | What | Value | How it was measured |
 |---|---|---|
-| {{RESULT}} | {{VALUE}} | {{METHOD}} |
-
-<!-- template: honest numbers with their method and date (run time, idempotence "changed=0",
-     test count, alert rules tested). No numbers you cannot reproduce. -->
+| Generator tests | 30 unit tests pass | `python3 -m unittest discover -s tests` with the stand-in compiler, 2026-10-21 |
+| Contrast | 58 pairs pass WCAG 2.2 AA in light and dark mode; lowest 3.43:1 (light) and 3.17:1 (dark), both UI parts with a 3:1 minimum | `python3 scripts/contrast.py`, 2026-10-21 |
+| Font | Sora variable font 60,684 bytes as WOFF (TTF 111,400) | `scripts/build_font.py`, 2026-10-21 |
 
 ## Documentation and links
 
 - [Installation](docs/install.md) · [Configuration](docs/configuration.md) ·
   [Upgrade](docs/upgrade.md) · [Troubleshooting](docs/troubleshooting.md) ·
-  [Runbook](docs/runbook.md) · [ADRs](docs/adr/)
-- [Changelog](CHANGELOG.md) and [releases](https://github.com/luminare-dev/{{SLUG}}/releases)
+  [Runbook](docs/runbook.md) · [Elastic inventory](docs/elastic-inventory.md) ·
+  [Contrast](docs/contrast.md) · [ADRs](docs/adr/)
+- [Changelog](CHANGELOG.md) and [releases](https://github.com/luminare-dev/lumen-mail/releases)
   (each release has `SHA256SUMS` and a build provenance attestation)
 - [Contributing](https://github.com/luminare-dev/.github/blob/main/CONTRIBUTING.md) ·
   [Code of conduct](https://github.com/luminare-dev/.github/blob/main/CODE_OF_CONDUCT.md) ·
   [Security](https://github.com/luminare-dev/.github/blob/main/SECURITY.md) ·
   [Support](https://github.com/luminare-dev/.github/blob/main/SUPPORT.md)
-- Project page: <https://luminare.tech/open-source/{{SLUG}}/>
+- Project page: <https://luminare.tech/open-source/lumen-mail/>
 
-<!-- fxserver:begin -->
 ## Not affiliated
 
-Not affiliated with or endorsed by Cfx.re, Rockstar Games or Take-Two. FiveM, RedM and FXServer
-are named only to describe what this project works with.
+Not affiliated with or endorsed by the Roundcube project. Roundcube and Elastic are named only to
+describe what this project works with.
 
-<!-- template: keep this section only for projects that work with FiveM or RedM servers
-     (FXServer); otherwise delete it from fxserver:begin to fxserver:end. Platform names go in the
-     description and topics, never in the project name. -->
-<!-- fxserver:end -->
+Not affiliated with or endorsed by Keyweb AG. KeyHelp is a registered trademark of Keyweb AG; it is
+named only because the skin can be selected in KeyHelp's webmail settings.
 
 ## Licence
 
-[{{SPDX_ID}}](LICENSE). The licence covers the code only: the project name, logo, header images
-and `docs/brand/` are not licensed (see [NOTICE](NOTICE)).
+[MIT](LICENSE). The licence covers the code only: the project name, logo, header images,
+`docs/brand/`, the logo files in `skin/images/` and `skin/thumbnail.png` are not licensed (see
+[NOTICE](NOTICE)). The stylesheets the generator compiles on your server are an adaptation of
+Roundcube's Elastic skin and are licensed under
+[CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/), like Elastic; the installed
+skin's `README.md` credits Elastic's authors. Sora is under the SIL Open Font License 1.1.
 
 <!-- byline:studio -->
-*a [Luminare Development](https://luminare.tech/open-source/{{SLUG}}/) open-source project*
+*a [Luminare Development](https://luminare.tech/open-source/lumen-mail/) open-source project*
 <!-- /byline:studio -->
 <!-- byline:personal
-*by {{AUTHOR_NAME}} · [project page](https://luminare.tech/open-source/{{SLUG}}/)*
+*by Paul Pasaurek · [project page](https://luminare.tech/open-source/lumen-mail/)*
 /byline:personal -->

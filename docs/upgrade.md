@@ -4,16 +4,20 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Befo
 release may contain breaking changes; they are listed under "BREAKING CHANGES" in the
 [changelog](../CHANGELOG.md).
 
-## General steps
+## After a Roundcube update
+
+Rebuild the skin: `verify` reports `built for Roundcube X, installed is Y` or `built from different
+Elastic sources` when the installed skin no longer matches. If `build` stops with exit code 3, the
+new Elastic changed something Lumen relies on; the message names it. Keep the old skin folder in
+place (it still works with the new Elastic in most cases) and open an issue with the message.
+
+## After a lumen-mail update
 
 1. Read the changelog entries between your version and the new one.
-2. Back up what the project changes (configuration, data).
-3. Install the new release (see [Installation](install.md)) and verify its checksum.
-4. Run the check from [Installation](install.md) again.
+2. `npm ci --omit=dev --ignore-scripts` (the compiler pins may have changed).
+3. Build into a new folder, run `verify`, then replace `skins/lumen` (see
+   [Installation](install.md)).
 
 ## Version notes
 
-### {{VERSION}}
-
-<!-- template: one section per release with manual steps. Delete this section if no release needs
-     manual steps yet. -->
+No release has needed manual steps yet.

@@ -16,4 +16,6 @@ tests/test_forbidden_words.py | * | test sentences that must trigger the rules
 tests/test_check_pr_title.py | * | test titles that must be rejected for their wording
 scripts/set_byline.py | placeholder | prints the names of the placeholders to fill again after a brand swap
 LICENSE | sell | the licence grants the right to "sell copies" of the software
-licenses/*.txt | sell | unchanged licence texts that grant the right to sell copies
+PUBLISHING.md | template-hint | the setup checklist (A2) quotes the template's hint syntax; it is not a leftover hint
+skin/fonts/Sora-OFL.txt | sell | the unchanged SIL Open Font License text of the bundled Sora font (it forbids selling the font by itself)
+skin/fonts/Sora-OFL.txt | scripts.sil.org | the licence's own reference URL in the unchanged OFL text
