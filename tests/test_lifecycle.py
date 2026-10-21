@@ -440,6 +440,48 @@ class SyncTest(LifecycleCase):
         self.assertFalse(self.skin.exists())
         self.assertEqual(self.compiler_starts(), 0)
 
+    def test_lost_state_with_lumen_as_system_skin_builds_at_once(self):
+        # The state folder is gone (no last good build) and an update removed skins/lumen while
+        # lumen is the system skin: every page would fail, so sync builds instead of doing nothing.
+        self.install()
+        shutil.rmtree(self.state.root)
+        self.simulate_keyhelp_update()
+        write(self.rc / "config" / "config.inc.php",
+              "<?php\n$config['des_key'] = 'SECRET-XYZ-123';\n$config[\"skin\"]  =  \"lumen\" ;\n")
+        code, report = self.lc().check()
+        self.assertEqual(code, EXIT_SYNC_NEEDED)
+        self.assertIn("the system skin is lumen", " ".join(report["reasons"]))
+        starts = self.compiler_starts()
+        self.assertEqual(self.lc().sync(), EXIT_OK, self.logbuf.getvalue())
+        self.assertEqual(self.compiler_starts(), starts + 1)
+        self.assertEqual(integrity_problems(self.skin), [])
+        self.assertEqual(read_stamp(self.state.last_good), read_stamp(self.skin))
+        self.assertIn("building it now", self.logbuf.getvalue())
+        self.assertNotIn("SECRET-XYZ-123", self.logbuf.getvalue())
+
+    def test_lost_state_with_another_system_skin_stays_a_noop(self):
+        self.install()
+        shutil.rmtree(self.state.root)
+        self.simulate_keyhelp_update()
+        for config in ("<?php\n$config['skin'] = 'elastic';\n",
+                       "<?php\n// $config['skin'] = 'lumen';\n$config['skin'] = 'elastic';\n",
+                       "<?php\n/* $config['skin'] = 'lumen'; */\n"):
+            write(self.rc / "config" / "config.inc.php", config)
+            self.assertEqual(self.lc().check()[0], EXIT_NOT_INSTALLED, config)
+            self.assertEqual(self.lc().sync(), EXIT_OK)
+            self.assertFalse(self.skin.exists(), config)
+        self.assertEqual(self.compiler_starts(), 1, "only the install compiled")
+
+    def test_an_uninstall_is_respected_even_with_lumen_as_system_skin(self):
+        self.install()
+        write(self.rc / "config" / "config.inc.php", "<?php\n$config['skin'] = 'lumen';\n")
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(self.lc().uninstall(force=True), EXIT_OK)
+        self.simulate_keyhelp_update()
+        write(self.rc / "config" / "config.inc.php", "<?php\n$config['skin'] = 'lumen';\n")
+        self.assertEqual(self.lc().sync(), EXIT_OK)
+        self.assertFalse(self.skin.exists())
+
     def test_tree_change_during_a_run_triggers_another_pass(self):
         self.install()
         lc = self.lc()

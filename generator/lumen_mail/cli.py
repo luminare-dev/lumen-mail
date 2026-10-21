@@ -227,9 +227,15 @@ def cmd_check(args: argparse.Namespace) -> int:
     return code
 
 
+def add_config_arg(p: argparse.ArgumentParser, why: str) -> None:
+    p.add_argument("--config", help=f"Roundcube config file, read only for its 'skin' setting ({why}; "
+                                    "default <roundcube>/config/config.inc.php)")
+
+
 def configure_check(p: argparse.ArgumentParser) -> None:
     add_common(p)
     add_palette_args(p, default_auto=True)
+    add_config_arg(p, "a missing build is urgent when the system skin is lumen")
     p.add_argument("--json", action="store_true", help="print the report as JSON")
 
 
@@ -241,6 +247,7 @@ def configure_sync(p: argparse.ArgumentParser) -> None:
     add_common(p)
     add_writer(p)
     add_builder(p)
+    add_config_arg(p, "with no build and no last good copy, sync builds one when the system skin is lumen")
     p.add_argument("--rebuild", action="store_true", help="rebuild even if the stamp is current")
     p.add_argument("--wait", type=float, default=env_float("LUMEN_MAIL_WAIT", 300.0),
                    help="seconds to wait for a complete Roundcube tree (default 300)")
@@ -284,7 +291,7 @@ def cmd_status(args: argparse.Namespace) -> int:
 def configure_status(p: argparse.ArgumentParser) -> None:
     add_common(p)
     add_palette_args(p, default_auto=True)
-    p.add_argument("--config", help="Roundcube config file (default <roundcube>/config/config.inc.php)")
+    add_config_arg(p, "shown as the system skin")
     p.add_argument("--json", action="store_true", help="print the status as JSON")
 
 
@@ -318,7 +325,7 @@ def cmd_uninstall(args: argparse.Namespace) -> int:
 def configure_uninstall(p: argparse.ArgumentParser) -> None:
     add_common(p)
     add_writer(p)
-    p.add_argument("--config", help="Roundcube config file (default <roundcube>/config/config.inc.php)")
+    add_config_arg(p, "uninstall refuses while it is lumen")
     p.add_argument("--force", action="store_true", help="remove the skin even if the system skin is (or may be) lumen")
 
 

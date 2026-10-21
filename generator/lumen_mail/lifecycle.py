@@ -261,6 +261,14 @@ class Lifecycle:
     def last_good_ok(self) -> bool:
         return self.state.last_good.is_dir() and not integrity_problems(self.state.last_good)
 
+    def system_skin_is_lumen(self) -> bool:
+        """True only when config.inc.php certainly selects lumen (read-only; prints nothing from it)."""
+        try:
+            skin = system_skin(self.roundcube, self.config)
+        except OSError:
+            return False
+        return skin.certain and skin.value == SKIN_NAME
+
     # ------------------------------------------------------------------ writing helpers
     def ensure_state_root(self) -> None:
         root = self.state.root
@@ -477,6 +485,10 @@ class Lifecycle:
         skin_problems = integrity_problems(self.skin_dir)
         last_good = self.state.last_good.is_dir()
         if skin_problems and not os.path.lexists(self.skin_dir) and not last_good:
+            if not state.uninstalled and self.system_skin_is_lumen():
+                reasons.append("the system skin is lumen, but there is no skins/lumen and no last good build")
+                report.update(status="sync-needed", reasons=reasons)
+                return EXIT_SYNC_NEEDED, report
             report.update(status="not-installed", reasons=["no skins/lumen and no last good build"])
             return EXIT_NOT_INSTALLED, report
         stamp = read_stamp(self.skin_dir)
@@ -613,9 +625,17 @@ class Lifecycle:
                 if self.restore_with_retry(deadline) is None:
                     return EXIT_TEMPFAIL
                 skin_problems = []
-            elif state.uninstalled or (not os.path.lexists(self.skin_dir) and not self.state.last_good.exists()):
-                self.log.info("Lumen is not installed here (no skins/lumen and no last good build); nothing to do")
+            elif state.uninstalled:
+                self.log.info("Lumen was uninstalled here; nothing to do")
                 return EXIT_OK
+            elif not os.path.lexists(self.skin_dir) and not self.state.last_good.exists():
+                if not self.system_skin_is_lumen():
+                    self.log.info("Lumen is not installed here (no skins/lumen and no last good build); nothing to do")
+                    return EXIT_OK
+                # The state folder was lost and an update removed skins/lumen: webmail fails until
+                # a build exists, so build one instead of waiting for someone to run install.
+                self.log.warning("the system skin is lumen, but there is no skins/lumen and no last good build; "
+                                 "building it now")
             else:
                 self.log.warning("skins/lumen is missing or damaged and the last good build cannot be used: "
                                  + "; ".join(skin_problems + integrity_problems(self.state.last_good, limit=2)))
@@ -629,7 +649,7 @@ class Lifecycle:
         rc = Roundcube.at(self.roundcube)
         want = self.wanted(rc)
         stamp = read_stamp(self.skin_dir) if not skin_problems else None
-        reasons = ["skins/lumen is damaged"] if skin_problems else stale_reasons(stamp, want)
+        reasons = ["skins/lumen is missing or damaged"] if skin_problems else stale_reasons(stamp, want)
         if force:
             reasons.append("a rebuild was requested (--rebuild)")
         if self.state.rebuild_request.exists():
