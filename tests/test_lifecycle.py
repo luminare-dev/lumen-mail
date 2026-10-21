@@ -148,8 +148,8 @@ class InstallTest(LifecycleCase):
         want = (skins.stat().st_uid, skins.stat().st_gid)
         chowned = []
         with mock.patch("lumen_mail.fsops.os.geteuid", return_value=0), \
-                mock.patch("lumen_mail.fsops.os.chown", side_effect=lambda p, u, g: chowned.append((str(p), u, g))), \
-                mock.patch("lumen_mail.lifecycle.os.chown", side_effect=lambda p, u, g: chowned.append((str(p), u, g))):
+                mock.patch("lumen_mail.fsops.os.chown", side_effect=lambda p, u, g, **kw: chowned.append((str(p), u, g))), \
+                mock.patch("lumen_mail.lifecycle.os.chown", side_effect=lambda p, u, g, **kw: chowned.append((str(p), u, g))):
             self.install(owner_spec="auto")
         targets = {p for p, _u, _g in chowned}
         self.assertTrue(chowned)
@@ -311,16 +311,16 @@ class SyncTest(LifecycleCase):
         before = read_stamp(self.skin)
         shutil.rmtree(self.skin)
         lc = self.lc()
-        real = lc.restore_last_good
+        real = lc.restore_from
         calls = {"n": 0}
 
-        def flaky():
+        def flaky(source):
             calls["n"] += 1
             if calls["n"] < 3:
                 raise PermissionError(13, "Permission denied", str(self.rc / "skins"))
-            return real()
+            return real(source)
 
-        with mock.patch.object(lc, "restore_last_good", side_effect=flaky):
+        with mock.patch.object(lc, "restore_from", side_effect=flaky):
             self.assertEqual(lc.sync(), EXIT_OK)
         self.assertEqual(calls["n"], 3)
         self.assertEqual(read_stamp(self.skin), before)
@@ -403,6 +403,11 @@ class SyncTest(LifecycleCase):
         self.assertEqual(self.lc(min_available_mb=400, meminfo=lambda: 120, log=Log(stream=quiet, quiet=True)).sync(),
                          EXIT_TEMPFAIL)
         self.assertEqual(quiet.getvalue(), "", "a repeated deferral is logged at info level only")
+        saved = self.state.sync_state.read_text()
+        self.assertNotIn("MB", saved, "the deferral keeps no changing text, so a repeat writes nothing")
+        stat_before = self.state.sync_state.stat()
+        self.assertEqual(self.lc(min_available_mb=400, meminfo=lambda: 119).sync(), EXIT_TEMPFAIL)
+        self.assertEqual(self.state.sync_state.stat().st_mtime_ns, stat_before.st_mtime_ns)
         self.assertEqual(self.lc(min_available_mb=400, meminfo=lambda: 900).sync(), EXIT_OK)
         self.assertIsNone(SyncState.load(self.state).deferred)
 
@@ -411,9 +416,11 @@ class SyncTest(LifecycleCase):
         with locked(self.state.lock, 0):
             with self.assertRaises(BusyError):
                 self.lc().sync()
-            code, _out, _err = run_cli("sync", "--roundcube", str(self.rc), "--state-dir", str(self.state.root),
-                                       "--lock-timeout", "0", "--source", str(ROOT))
+            code, _out, err = run_cli("sync", "--roundcube", str(self.rc), "--state-dir", str(self.state.root),
+                                      "--lock-timeout", "0", "--source", str(ROOT), "--owner", "")
             self.assertEqual(code, EXIT_TEMPFAIL)
+            self.assertIn("another lumen-mail run holds", err)
+            self.assertNotIn("error:", err, "a busy lock is not a fault: notice level")
         self.assertEqual(self.lc().sync(), EXIT_OK)
 
     def test_leftovers_of_an_interrupted_run_are_removed(self):

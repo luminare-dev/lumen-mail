@@ -12,13 +12,17 @@
 # Group= to the owner of <roundcube>/skins (docs/install.md, "Plain Roundcube").
 #
 # What a run does (docs/update-safety.md): wait until the Roundcube tree is extracted, restore
-# skins/lumen from the last good build at once if it is missing or damaged (no Node, milliseconds),
-# then rebuild if the stamp is stale, after the tree has been quiet for 5 s and only with 400 MB of
-# memory available. A run with nothing to do writes nothing and logs nothing at notice level.
+# skins/lumen at once if it is missing or damaged (from the last good build, else the newest intact
+# backup; no Node, milliseconds), then rebuild if the stamp is stale, after the tree has been quiet
+# for 5 s and only with 300 MB of memory available. A run with nothing to do writes nothing and
+# logs nothing at notice level. The service runs as the Roundcube owner and never as root: that
+# user can change Elastic's LESS, which the rebuild compiles.
 #
 # Exit codes: 0 done or nothing to do; 1, 3, 4 the rebuild failed (the active build stays; the unit
-# shows as failed and the error is in the journal); 75 try again later (lock busy, update still
-# running, too little memory, back-off after a failure): counted as success, the timer retries.
+# shows as failed and the error is in the journal), or webmail is down (the system skin is lumen
+# and there is no usable skins/lumen; logged at error level on every run); 75 try again later
+# (lock busy, update still running, too little memory, back-off after a failure): counted as
+# success, the timer retries.
 [Unit]
 Description=lumen-mail: restore and rebuild the Lumen webmail skin after Roundcube updates
 Documentation=https://github.com/luminare-dev/lumen-mail/blob/main/docs/update-safety.md
@@ -42,6 +46,10 @@ StateDirectoryMode=0750
 Environment=PYTHONUNBUFFERED=1
 # Caps the V8 heap of the compile below MemoryMax= (measured peak: docs/update-safety.md).
 Environment=NODE_OPTIONS=--max-old-space-size=256
+# MemAvailable needed before a rebuild's compile starts (it peaks at about 115 MB RSS, inside
+# MemoryMax=300M, and is the OOM killer's first victim). While webmail is down, a lower emergency
+# floor applies.
+Environment=LUMEN_MAIL_MIN_AVAILABLE_MB=300
 
 # Journal: restores, rebuilds and failures only. LogLevelMax= also drops systemd's own info lines
 # about this unit ("Starting", "Finished", "Deactivated"), so the 2-minute no-op leaves no trace.

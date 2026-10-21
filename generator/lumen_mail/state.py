@@ -19,6 +19,7 @@ import datetime as _dt
 import fcntl
 import json
 import os
+import tempfile
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -74,18 +75,32 @@ class StatePaths:
 
 
 @contextlib.contextmanager
-def locked(path: Path, timeout: float, what: str = "lumen-mail") -> Iterator[None]:
+def locked(path: Path, timeout: float, what: str = "lumen-mail",
+           owner: tuple[int, int] | None = None) -> Iterator[None]:
     """Hold an exclusive flock on ``path``; wait up to ``timeout`` seconds, then raise BusyError.
 
-    The lock file may belong to another user (root runs install, the unit runs as the Roundcube
-    owner): flock works on a descriptor opened read-only, so that is the fallback.
+    The lock file is never followed if it is a symbolic link (O_NOFOLLOW), and its owner is set
+    through the descriptor. It may belong to another user: flock works on a descriptor opened
+    read-only, so that is the fallback.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
+    flags = os.O_CLOEXEC | os.O_NOFOLLOW
     try:
-        fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_CLOEXEC, 0o644)
-    except PermissionError:
-        fd = os.open(path, os.O_RDONLY | os.O_CLOEXEC)
+        try:
+            fd = os.open(path, os.O_RDWR | os.O_CREAT | flags, 0o644)
+        except PermissionError:
+            fd = os.open(path, os.O_RDONLY | flags)
+    except OSError as exc:
+        if os.path.islink(path):
+            raise LumenError(f"the lock file {path} is a symbolic link; refusing to use it",
+                             [f"check it and remove it: rm {path}"]) from exc
+        raise
     try:
+        if owner:
+            st = os.fstat(fd)
+            if (st.st_uid, st.st_gid) != owner:
+                with contextlib.suppress(OSError):
+                    os.fchown(fd, *owner)
         deadline = time.monotonic() + max(0.0, timeout)
         while True:
             try:
@@ -98,6 +113,25 @@ def locked(path: Path, timeout: float, what: str = "lumen-mail") -> Iterator[Non
         yield
     finally:
         os.close(fd)  # closing the descriptor releases the lock
+
+
+def atomic_write(path: Path, text: str, owner: tuple[int, int] | None = None, mode: int = 0o644) -> None:
+    """Write ``path`` through a new temporary file in the same folder (never through a link that
+    may be at ``path``), set its mode and owner on the descriptor, flush it, rename it into place."""
+    fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(text)
+            fh.flush()
+            os.fchmod(fh.fileno(), mode)
+            if owner:
+                os.fchown(fh.fileno(), *owner)
+            os.fsync(fh.fileno())
+        os.replace(tmp, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp)
+        raise
 
 
 def utc_now() -> _dt.datetime:
@@ -122,7 +156,7 @@ class SyncState:
     """What sync remembers between runs. Written only when something changes."""
 
     failure: dict[str, Any] | None = None      # {key, attempts, last_attempt, next_attempt, error, exit_code}
-    deferred: dict[str, Any] | None = None     # {reason, since}
+    deferred: dict[str, Any] | None = None     # {kind, since, warned?}
     hold: dict[str, Any] | None = None         # {since, backup}
     uninstalled: str | None = None             # ISO time of the uninstall
     _loaded: str = field(default="", repr=False)
@@ -154,11 +188,6 @@ class SyncState:
         if text == self._loaded:
             return False
         paths.root.mkdir(parents=True, exist_ok=True)
-        tmp = paths.sync_state.with_name(f".{paths.sync_state.name}.{os.getpid()}.tmp")
-        tmp.write_text(text, encoding="utf-8")
-        os.chmod(tmp, 0o644)
-        if owner:
-            os.chown(tmp, *owner)
-        os.replace(tmp, paths.sync_state)
+        atomic_write(paths.sync_state, text, owner)
         self._loaded = text
         return True

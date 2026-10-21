@@ -13,7 +13,12 @@ Exit codes:
    6  not installed (check)
   10  sync needed (check)
   75  try again later: another run holds the lock, the Roundcube tree is incomplete, too little
-      memory for the compile, or back-off after a failed rebuild (the sync unit treats 75 as success)
+      memory for the compile, or back-off after a failed rebuild (the sync unit treats 75 as success;
+      while webmail is down because the system skin is lumen and no usable skins/lumen exists,
+      sync exits 1 instead)
+
+Run as root, every command except verify and install-runtime continues as the Roundcube owner
+(privileges.py): the owner of <roundcube>/skins, or --owner.
 """
 
 from __future__ import annotations
@@ -25,14 +30,15 @@ import sys
 from pathlib import Path
 from typing import Callable
 
+from . import privileges
 from .build import BuildOptions, build
 from .fsops import resolve_owner
-from .lifecycle import EXIT_SYNC_NEEDED, Lifecycle
+from .lifecycle import DEFAULT_MIN_AVAILABLE_MB, EXIT_SYNC_NEEDED, Lifecycle
 from .log import Log
 from .roundcube import Roundcube
 from .runtime import DEFAULT_PREFIX, install_runtime
 from .sources import Sources
-from .state import StatePaths
+from .state import BusyError, StatePaths
 from .util import LumenError
 from .verify import verify
 
@@ -74,11 +80,18 @@ def add_common(p: argparse.ArgumentParser, roundcube: bool = True) -> None:
     p.add_argument("-v", "--verbose", action="store_true", help="also debug messages and compiler output")
 
 
+OWNER_HELP = ("as root: the user this command continues as, and so the owner of every file it writes: 'auto' "
+              "(the owner of <roundcube>/skins; refused if that is root), 'user:group', or '' to stay root and "
+              "change no owner ($LUMEN_MAIL_OWNER)")
+
+
+def add_owner(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--owner", default=os.environ.get("LUMEN_MAIL_OWNER", "auto"), help=OWNER_HELP)
+
+
 def add_writer(p: argparse.ArgumentParser) -> None:
     p.add_argument("--dry-run", action="store_true", help="show what would happen; write nothing")
-    p.add_argument("--owner", default="auto",
-                   help="owner of written files: 'auto' (as root: the owner of <roundcube>/skins), 'user:group', "
-                        "or '' to leave it as it is")
+    add_owner(p)
     p.add_argument("--keep", type=int, default=5, help="backups to keep (default 5)")
     p.add_argument("--lock-timeout", type=float, default=env_float("LUMEN_MAIL_LOCK_TIMEOUT", 30.0),
                    help="seconds to wait for another run to finish (default 30), then exit 75")
@@ -92,8 +105,34 @@ def add_builder(p: argparse.ArgumentParser) -> None:
 
 
 def sources_from(args: argparse.Namespace) -> Sources:
-    return Sources.locate(getattr(args, "source", None), getattr(args, "node_modules", None),
-                          getattr(args, "palette", None))
+    try:
+        return Sources.locate(getattr(args, "source", None), getattr(args, "node_modules", None),
+                              getattr(args, "palette", None))
+    except PermissionError as exc:
+        raise LumenError(f"cannot read the lumen-mail sources as {privileges.user_name(os.geteuid())}: {exc}",
+                         ["run the installed runtime (/opt/lumen-mail/bin/lumen-mail, see install-runtime), whose "
+                          "files every user can read, or pass --source with such a folder"]) from exc
+
+
+# Commands that continue as the Roundcube owner when started as root, and those among them that
+# write (they refuse a tree that belongs to root and prepare the state folder first).
+AS_OWNER = {"build", "install", "check", "sync", "status", "rollback", "resume", "request-rebuild", "uninstall"}
+WRITERS = {"install", "sync", "rollback", "resume", "request-rebuild", "uninstall"}
+
+
+def continue_as_owner(args: argparse.Namespace) -> None:
+    """Started as root: prepare the state folder, then drop to the Roundcube owner (privileges.py)."""
+    if os.geteuid() != 0 or args.command not in AS_OWNER or not getattr(args, "roundcube", None):
+        return
+    writer = args.command in WRITERS
+    owner = privileges.target_owner(Path(args.roundcube).absolute(), getattr(args, "owner", "auto"), strict=writer)
+    if owner is None:
+        return
+    if writer and not getattr(args, "dry_run", False):
+        privileges.prepare_state_root(StatePaths.locate(args.state_dir).root, owner)
+    privileges.drop_to(owner)
+    # From here on every file is written by its owner: no chown.
+    args.owner = ""
 
 
 def lifecycle_from(args: argparse.Namespace) -> Lifecycle:
@@ -113,7 +152,7 @@ def lifecycle_from(args: argparse.Namespace) -> Lifecycle:
         lock_timeout=getattr(args, "lock_timeout", 30.0),
         wait=getattr(args, "wait", 300.0),
         settle=getattr(args, "settle", 5.0),
-        min_available_mb=getattr(args, "min_available_mb", 400),
+        min_available_mb=getattr(args, "min_available_mb", DEFAULT_MIN_AVAILABLE_MB),
         config=Path(args.config) if getattr(args, "config", None) else None,
     )
 
@@ -143,6 +182,7 @@ def configure_build(p: argparse.ArgumentParser) -> None:
     p.add_argument("--node", help="node binary (default: node from PATH, or $LUMEN_MAIL_NODE)")
     p.add_argument("--work-dir", help="where the temporary mirror tree goes (default: next to --out)")
     p.add_argument("--print-stamp", action="store_true", help="print the stamp as JSON on stdout")
+    add_owner(p)
     p.add_argument("-q", "--quiet", action="store_true")
 
 
@@ -210,9 +250,14 @@ def cmd_check(args: argparse.Namespace) -> int:
         f = report["last_failure"]
         lines.append(f"  last rebuild failed {f.get('last_attempt')} (attempt {f.get('attempts')}): {f.get('error')}")
     if report.get("deferred"):
-        lines.append(f"  rebuild deferred: {report['deferred'].get('reason')}")
+        lines.append(f"  rebuild deferred: {deferral_text(report['deferred'])}")
     emit_report(args, report, lines)
     return code
+
+
+def deferral_text(deferred: dict) -> str:
+    kind = {"memory": "too little memory for the compile"}.get(deferred.get("kind", ""), deferred.get("kind", "?"))
+    return f"{kind} since {deferred.get('since')}"
 
 
 def add_config_arg(p: argparse.ArgumentParser, why: str) -> None:
@@ -222,6 +267,7 @@ def add_config_arg(p: argparse.ArgumentParser, why: str) -> None:
 
 def configure_check(p: argparse.ArgumentParser) -> None:
     add_common(p)
+    add_owner(p)
     add_palette_args(p)
     add_config_arg(p, "a missing build is urgent when the system skin is lumen")
     p.add_argument("--json", action="store_true", help="print the report as JSON")
@@ -241,8 +287,10 @@ def configure_sync(p: argparse.ArgumentParser) -> None:
                    help="seconds to wait for a complete Roundcube tree (default 300)")
     p.add_argument("--settle", type=float, default=env_float("LUMEN_MAIL_SETTLE", 5.0),
                    help="seconds the tree must be unchanged before a rebuild (default 5)")
-    p.add_argument("--min-available-mb", type=int, default=int(env_float("LUMEN_MAIL_MIN_AVAILABLE_MB", 400)),
-                   help="MemAvailable needed before the compiler starts (default 400; 0 turns the check off)")
+    p.add_argument("--min-available-mb", type=int,
+                   default=int(env_float("LUMEN_MAIL_MIN_AVAILABLE_MB", DEFAULT_MIN_AVAILABLE_MB)),
+                   help=f"MemAvailable needed before the compiler starts (default {DEFAULT_MIN_AVAILABLE_MB}; 0 turns "
+                        "the check off; while webmail is down a lower emergency floor applies)")
 
 
 def cmd_status(args: argparse.Namespace) -> int:
@@ -268,7 +316,7 @@ def cmd_status(args: argparse.Namespace) -> int:
         print(f"Last failure: {f.get('last_attempt')}, attempt {f.get('attempts')}, exit {f.get('exit_code')}: "
               f"{f.get('error')}; next attempt after {f.get('next_attempt')}")
     if ss["deferred"]:
-        print(f"Deferred:    {ss['deferred'].get('reason')} (since {ss['deferred'].get('since')})")
+        print(f"Deferred:    {deferral_text(ss['deferred'])}")
     if ss["rebuild_requested"]:
         print("Rebuild:     requested; the next sync run rebuilds")
     if ss["uninstalled"]:
@@ -278,6 +326,7 @@ def cmd_status(args: argparse.Namespace) -> int:
 
 def configure_status(p: argparse.ArgumentParser) -> None:
     add_common(p)
+    add_owner(p)
     add_palette_args(p)
     add_config_arg(p, "shown as the system skin")
     p.add_argument("--json", action="store_true", help="print the status as JSON")
@@ -379,7 +428,15 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     fn = COMMANDS[args.command][0]
     try:
+        continue_as_owner(args)
         return fn(args)
+    except BusyError as exc:
+        if args.command != "sync":
+            print(exc.render(), file=sys.stderr)
+        else:
+            # Another run (path unit, timer or an admin) is doing the work: not a fault.
+            Log(quiet=getattr(args, "quiet", False)).notice(str(exc))
+        return exc.exit_code
     except LumenError as exc:
         print(exc.render(), file=sys.stderr)
         return exc.exit_code

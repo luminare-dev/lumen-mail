@@ -7,7 +7,9 @@ Rules:
   * rename(2) does not work across mount points, even on the same file system (EXDEV). Inside
     the systemd unit, the Roundcube root and the state folder are separate bind mounts, so
     staging lives in <roundcube>/.lumen-mail/ and moves into the state folder are copies;
-  * nothing is ever deleted in place: a replaced skin goes to <state>/backups/.
+  * nothing is ever deleted in place: a replaced skin goes to <state>/backups/;
+  * modes and owners are changed without following symbolic links, and a new build or last good
+    copy is flushed to disk (fsync) before it is renamed into place.
 """
 
 from __future__ import annotations
@@ -21,6 +23,7 @@ import os
 import pwd
 import re
 import shutil
+import stat
 import sys
 from pathlib import Path
 
@@ -100,21 +103,44 @@ def remove_tree(path: Path) -> None:
 
 
 def set_tree_modes(tree: Path, owner: tuple[int, int] | None) -> None:
-    """Folders 755, files 644, and the owner if one is given (needs root)."""
-    for dirpath, _dirnames, filenames in os.walk(tree):
-        os.chmod(dirpath, 0o755)
-        if owner:
-            os.chown(dirpath, *owner)
-        for name in filenames:
-            path = os.path.join(dirpath, name)
-            os.chmod(path, 0o644)
+    """Folders 755, files 644, and the owner if one is given (needs root). Symbolic links are
+    refused, and nothing is followed."""
+    for dirpath, dirnames, filenames in os.walk(tree):
+        for path in [dirpath] + [os.path.join(dirpath, n) for n in dirnames + filenames]:
+            mode = os.lstat(path).st_mode
+            if stat.S_ISLNK(mode):
+                raise LumenError(f"{path} is a symlink; a skin folder must not contain any")
+            os.chmod(path, 0o755 if stat.S_ISDIR(mode) else 0o644, follow_symlinks=False)
             if owner:
-                os.chown(path, *owner)
+                os.chown(path, *owner, follow_symlinks=False)
 
 
 def chown_path(path: Path, owner: tuple[int, int] | None) -> None:
     if owner:
-        os.chown(path, *owner)
+        os.chown(path, *owner, follow_symlinks=False)
+
+
+def fsync_dir(path: Path) -> None:
+    fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def fsync_tree(tree: Path) -> None:
+    """Flush every file, then every folder (deepest first) of ``tree`` to disk."""
+    folders: list[str] = []
+    for dirpath, _dirnames, filenames in os.walk(tree):
+        folders.append(dirpath)
+        for name in filenames:
+            fd = os.open(os.path.join(dirpath, name), os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+            try:
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+    for dirpath in reversed(folders):
+        fsync_dir(Path(dirpath))
 
 
 def resolve_owner(spec: str, reference: Path) -> tuple[int, int] | None:
@@ -130,9 +156,11 @@ def resolve_owner(spec: str, reference: Path) -> tuple[int, int] | None:
         if os.geteuid() != 0:
             return None
         probe = reference
-        while not probe.exists() and probe != probe.parent:
+        while not os.path.lexists(probe) and probe != probe.parent:
             probe = probe.parent
-        st = probe.stat()
+        st = os.lstat(probe)
+        if stat.S_ISLNK(st.st_mode):
+            raise LumenError(f"{probe} is a symbolic link; refusing to take its owner")
         return st.st_uid, st.st_gid
     user, _, group = spec.partition(":")
     try:

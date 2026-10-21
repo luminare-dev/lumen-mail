@@ -5,22 +5,29 @@ extract the new release, rewrite config.inc.php, chown -R; about two seconds). W
 system skin, webmail shows an error page from the moment skins/lumen is gone until it is back.
 sync therefore works in two steps:
 
-1. Fast restore. As soon as the new tree is extracted (program/include/iniset.php and
-   skins/elastic/meta.json exist), a missing or damaged skins/lumen is replaced by the last good
-   build from the state folder: copy into <roundcube>/.lumen-mail/ (same mount), one rename.
-   No Node, no compile; it takes milliseconds. The restored build may be stale but works.
+1. Fast restore. As soon as the new tree is extracted (program/include/iniset.php,
+   skins/elastic/meta.json and Elastic's templates/includes/footer.html, which Lumen's footer
+   wrapper includes, exist), a missing or damaged skins/lumen is replaced by the last good build
+   from the state folder, or by the newest intact backup if the last good build is missing or
+   damaged: copy into <roundcube>/.lumen-mail/ (same mount), one rename. No Node, no compile; it
+   takes milliseconds. The restored build may be stale but works.
 2. Rebuild. If the stamp no longer matches (Roundcube version, Elastic digest, lumen-mail version
-   or sources), sync waits until the tree has stopped changing (KeyHelp has finished), checks the
-   back-off and the free memory, builds into staging, verifies, swaps it in with one atomic
-   rename and saves it as the new last good build. A failed rebuild keeps the active build, is
-   logged as an error and backs off (10 min, 30 min, 1 h, 2 h, then every 6 h) until the inputs
-   change.
+   or sources), sync waits until the tree has stopped changing (KeyHelp has finished), checks
+   again whether the build is still stale, checks the back-off and the free memory, builds into
+   staging, verifies, swaps it in with one atomic rename and saves it as the new last good build.
+   A failed rebuild keeps the active build, is logged as an error and backs off (10 min, 30 min,
+   1 h, 2 h, then every 6 h) until the inputs change.
+
+Outage: when the system skin is lumen and there is no usable skins/lumen and nothing to restore
+it from, every webmail page fails. sync then builds at once, without the back-off and with only
+an emergency memory floor, logs "webmail is down" at error level on every run and exits 1 (not
+75) until skins/lumen is back.
 
 A run that finds everything current writes nothing and logs only at info level. Every run that
 writes holds the lock, so a path-triggered run, a timer run and a manual install never overlap.
 
 Exit codes (also in docs/cli.md): 0 ok; 1 error (sync: the rebuild failed, the active build
-stays); 2 usage; 3 Elastic drift; 4 compile error; 5 refused (uninstall while the system skin is
+stays; or webmail is down); 2 usage; 3 Elastic drift; 4 compile error; 5 refused (uninstall while the system skin is
 lumen); 6 not installed; 10 sync needed (check); 75 try again later (lock busy, Roundcube tree
 incomplete, too little memory, back-off after a failed rebuild).
 """
@@ -33,6 +40,8 @@ import json
 import os
 import re
 import shlex
+import shutil
+import stat
 import tempfile
 import time
 from dataclasses import dataclass, field
@@ -42,13 +51,13 @@ from typing import Callable, Iterator
 from . import SKIN_NAME, STAMP_NAME
 from .build import BuildOptions, build
 from .elastic import check_drift
-from .fsops import (chown_path, copy_tree, exchange, list_backups, move_tree, remove_tree, resolve_owner,
-                    rotate_backups, set_tree_modes, stamp_name, swap_in)
+from .fsops import (chown_path, copy_tree, exchange, fsync_dir, fsync_tree, list_backups, move_tree, remove_tree,
+                    resolve_owner, rotate_backups, set_tree_modes, stamp_name, swap_in)
 from .log import Log
 from .phpconfig import system_skin
 from .roundcube import Roundcube
 from .sources import PACKAGE_DIR, Sources
-from .state import DEFAULT_STATE_DIR, StatePaths, SyncState, iso, locked, parse_iso
+from .state import DEFAULT_STATE_DIR, StatePaths, SyncState, atomic_write, iso, locked, parse_iso
 from .util import LumenError, sha256_file
 from .verify import verify
 
@@ -63,7 +72,18 @@ EXIT_SYNC_NEEDED = 10
 EXIT_TEMPFAIL = 75
 
 SCRATCH_NAME = ".lumen-mail"          # in the Roundcube root: outside skins/, survives "rm -rf <root>/*"
+RUN_PREFIX = "run-"                   # the only entries lumen-mail creates (and removes) in SCRATCH_NAME
 BACKOFF_SECONDS = (600, 1800, 3600, 7200, 21600)
+# MemAvailable needed before a rebuild's compile starts. The compile peaks at about 115 MB RSS and
+# runs inside the unit's MemoryMax=300M as the OOM killer's first victim (OOMScoreAdjust=1000), so
+# 300 MB leaves room for the rest of the host (docs/update-safety.md).
+DEFAULT_MIN_AVAILABLE_MB = 300
+# While webmail is down (system skin lumen, no usable build, nothing to restore), a build is the
+# only way back: it starts with this much and ignores the back-off.
+EMERGENCY_MIN_AVAILABLE_MB = 150
+# A deferred rebuild is logged at warning level once it has waited this long, and again after
+# each further period, so that a stale skin cannot go unnoticed.
+DEFERRAL_WARN_SECONDS = 6 * 3600
 MAX_PASSES = 4
 POLL_SECONDS = 0.05
 SETTLE_POLL_SECONDS = 0.25
@@ -78,7 +98,16 @@ FINGERPRINT_FILES = (
     "skins/elastic/templates/includes/footer.html",
 )
 FINGERPRINT_DIRS = ("program", "skins", "skins/elastic")
-_LEFTOVER_STATE_RE = re.compile(r"^\.(last-good\.(new|old)-\d+|sync-state\.json\.\d+\.tmp)$")
+# What must exist before a build may be put back into skins/: Lumen's footer wrapper includes
+# Elastic's footer, and without it the include would find the wrapper itself and recurse until
+# PHP stops (a fatal error on every page instead of Roundcube's own error page).
+EXTRACTED_FILES = (
+    "program/include/iniset.php",
+    "skins/elastic/meta.json",
+    "skins/elastic/templates/includes/footer.html",
+)
+_LEFTOVER_STATE_RE = re.compile(
+    r"^\.(last-good\.(new|old)-\d+|(sync-state\.json|ROLLBACK\.txt|rebuild-requested)\.[A-Za-z0-9_]+\.tmp)$")
 
 
 class RefusedError(LumenError):
@@ -179,7 +208,7 @@ class Lifecycle:
     lock_timeout: float = 30.0
     wait: float = 300.0                   # how long sync waits for a complete Roundcube tree
     settle: float = 5.0                   # quiet seconds before a rebuild
-    min_available_mb: int = 400           # MemAvailable needed before the compiler starts (0: off)
+    min_available_mb: int = DEFAULT_MIN_AVAILABLE_MB  # MemAvailable needed before the compiler starts (0: off)
     config: Path | None = None            # config.inc.php (default <roundcube>/config/config.inc.php)
     prog: str = ""
     clock: Callable[[], float] = time.monotonic
@@ -220,8 +249,7 @@ class Lifecycle:
 
     def extracted(self) -> bool:
         """The Roundcube tree is there again (enough to restore a build into it)."""
-        return ((self.roundcube / "program" / "include" / "iniset.php").is_file()
-                and (self.skins_dir / "elastic" / "meta.json").is_file())
+        return all((self.roundcube / rel).is_file() for rel in EXTRACTED_FILES)
 
     def fingerprint(self) -> tuple:
         out: list = []
@@ -247,6 +275,20 @@ class Lifecycle:
     def last_good_ok(self) -> bool:
         return self.state.last_good.is_dir() and not integrity_problems(self.state.last_good)
 
+    def restore_source(self, uninstalled: bool = False) -> tuple[str, Path] | None:
+        """Where a missing or damaged skins/lumen comes back from: the last good build if it is
+        intact, else the newest intact backup (never one that uninstall made). None if neither."""
+        if self.last_good_ok():
+            return "the last good build", self.state.last_good
+        if uninstalled:
+            return None
+        for backup in reversed(list_backups(self.state.backups)):
+            if backup.name.endswith("-uninstall"):
+                continue
+            if not integrity_problems(backup / SKIN_NAME):
+                return f"the backup {backup.name}", backup / SKIN_NAME
+        return None
+
     def system_skin_is_lumen(self) -> bool:
         """True only when config.inc.php certainly selects lumen (read-only; prints nothing from it)."""
         try:
@@ -258,42 +300,78 @@ class Lifecycle:
     # ------------------------------------------------------------------ writing helpers
     def ensure_state_root(self) -> None:
         root = self.state.root
-        created = not root.exists()
         try:
-            root.mkdir(parents=True, exist_ok=True)
-        except OSError as exc:
-            raise LumenError(f"cannot create the state folder {root}: {exc.strerror}",
-                             ["run as root once (install), or pass --state-dir"]) from exc
-        if created:
+            st = os.lstat(root)
+        except FileNotFoundError:
+            st = None
+        if st is None:
+            try:
+                root.mkdir(parents=True, exist_ok=True)
+            except OSError as exc:
+                raise LumenError(f"cannot create the state folder {root}: {exc.strerror}",
+                                 ["run as root once (install), or pass --state-dir"]) from exc
             os.chmod(root, 0o750)
+            st = os.lstat(root)
+        if stat.S_ISLNK(st.st_mode) or not stat.S_ISDIR(st.st_mode):
+            raise LumenError(f"the state folder {root} is not a plain folder (a symbolic link?); refusing to use it")
         owner = self.owner()
-        if owner and (root.stat().st_uid, root.stat().st_gid) != owner:
-            os.chown(root, *owner)
+        if owner and (st.st_uid, st.st_gid) != owner:
+            os.chown(root, *owner, follow_symlinks=False)
+
+    def allowed_uids(self) -> set[int]:
+        owner = self.owner()
+        return {os.geteuid()} | ({owner[0]} if owner else set())
+
+    def check_skins_dir(self) -> None:
+        """skins/ must be a plain folder: a link there would make every write land elsewhere."""
+        try:
+            st = os.lstat(self.skins_dir)
+        except FileNotFoundError:
+            return
+        if stat.S_ISLNK(st.st_mode) or not stat.S_ISDIR(st.st_mode):
+            raise LumenError(f"{self.skins_dir} is not a plain folder (a symbolic link?); refusing to write into it")
+
+    def check_scratch(self) -> bool:
+        """True if <roundcube>/.lumen-mail exists; refuses it unless it is a plain folder of ours."""
+        try:
+            st = os.lstat(self.scratch)
+        except FileNotFoundError:
+            return False
+        if stat.S_ISLNK(st.st_mode) or not stat.S_ISDIR(st.st_mode):
+            raise LumenError(f"{self.scratch} is not a plain folder (a symbolic link?); refusing to use it",
+                             [f"check it and remove it by hand: ls -la {shlex.quote(str(self.scratch))}"])
+        if st.st_uid not in self.allowed_uids():
+            raise LumenError(f"{self.scratch} belongs to uid {st.st_uid}, not to the user lumen-mail runs as; "
+                             "refusing to use it", [f"check it and remove it by hand: {shlex.quote(str(self.scratch))}"])
+        return True
 
     @contextlib.contextmanager
     def lock(self) -> Iterator[None]:
         self.ensure_state_root()
-        with locked(self.state.lock, self.lock_timeout):
-            with contextlib.suppress(OSError):
-                chown_path(self.state.lock, self.owner())
+        with locked(self.state.lock, self.lock_timeout, owner=self.owner()):
             yield
 
     def cleanup_leftovers(self) -> None:
         """Remove what an interrupted run left behind (only while holding the lock)."""
-        if self.scratch.is_dir():
+        if self.check_scratch():
             for child in sorted(self.scratch.iterdir()):
+                if not child.name.startswith(RUN_PREFIX):
+                    self.log.warning(f"leaving {child} alone: lumen-mail did not create it")
+                    continue
                 self.log.notice(f"removing {child}, left over from an interrupted run")
                 remove_tree(child)
             with contextlib.suppress(OSError):
                 self.scratch.rmdir()
-        if self.state.root.is_dir():
+        if self.state.root.is_dir() and not self.state.root.is_symlink():
             for child in self.state.root.iterdir():
                 if _LEFTOVER_STATE_RE.match(child.name):
                     remove_tree(child)
 
     def new_run_dir(self) -> Path:
-        self.scratch.mkdir(mode=0o700, exist_ok=True)
-        return Path(tempfile.mkdtemp(prefix="run-", dir=self.scratch))
+        with contextlib.suppress(FileExistsError):
+            os.mkdir(self.scratch, 0o700)
+        self.check_scratch()
+        return Path(tempfile.mkdtemp(prefix=RUN_PREFIX, dir=self.scratch))
 
     def finish_run(self, run: Path) -> None:
         remove_tree(run)
@@ -311,10 +389,19 @@ class Lifecycle:
         rotate_backups(self.state.backups, self.keep)
         return dest
 
-    def put_in_place(self, staged: Path, reason: str) -> Path | None:
-        """Swap ``staged`` into skins/lumen; the previous folder goes to the backups."""
+    def put_in_place(self, staged: Path, reason: str, durable: bool = True) -> Path | None:
+        """Swap ``staged`` into skins/lumen; the previous folder goes to the backups.
+
+        ``durable``: flush the new files to disk before the swap and the folder after it, so a
+        power loss cannot leave empty files behind (the fast restore skips it: its source, the
+        last good build, is already on disk)."""
+        self.check_skins_dir()
         set_tree_modes(staged, self.owner())
+        if durable:
+            fsync_tree(staged)
         old = swap_in(staged, self.skin_dir)
+        if durable:
+            fsync_dir(self.skins_dir)
         if old is None:
             return None
         try:
@@ -330,6 +417,7 @@ class Lifecycle:
         remove_tree(tmp)
         copy_tree(tree, tmp)
         set_tree_modes(tmp, self.owner())
+        fsync_tree(tmp)
         target = self.state.last_good
         if not os.path.lexists(target):
             os.rename(tmp, target)
@@ -340,6 +428,7 @@ class Lifecycle:
             os.rename(target, old)
             os.rename(tmp, target)
             remove_tree(old)
+        fsync_dir(self.state.root)
 
     def build_staged(self, rc: Roundcube, run: Path) -> Path:
         out = run / SKIN_NAME
@@ -348,28 +437,53 @@ class Lifecycle:
                            work_dir=self.work_dir or Path(tempfile.gettempdir()), quiet=not self.log.verbose))
         return out
 
-    def restore_last_good(self) -> float:
+    def restore_from(self, source: Path) -> float:
+        """Copy ``source`` into skins/lumen (staging plus one rename). Raises LumenError with a
+        readable message if the copy fails (disk full, file size limit ...)."""
         start = self.clock()
         run = self.new_run_dir()
         try:
             staged = run / SKIN_NAME
-            copy_tree(self.state.last_good, staged)
-            self.put_in_place(staged, "replaced-broken")
+            try:
+                copy_tree(source, staged)
+            except shutil.Error as exc:
+                errors = exc.args[0] if exc.args and isinstance(exc.args[0], list) else []
+                first = errors[0][2] if errors and len(errors[0]) > 2 else str(exc)
+                raise LumenError(f"could not restore skins/lumen from {source}: {first} ({len(errors) or '?'} files)",
+                                 [f"check the free space and limits in {self.roundcube} and {self.state.root}"]) from None
+            self.put_in_place(staged, "replaced-broken", durable=False)
+        except (PermissionError, FileNotFoundError):
+            raise
+        except OSError as exc:
+            raise LumenError(f"could not restore skins/lumen from {source}: {exc.strerror or exc}",
+                             [f"check the free space and limits in {self.roundcube} and {self.state.root}"]) from exc
         finally:
             self.finish_run(run)
         return self.clock() - start
 
-    def restore_with_retry(self, deadline: float) -> float | None:
-        """Restore; retry while skins/ is not writable yet (KeyHelp's chown -R still pending)."""
-        last: OSError | None = None
+    def restore_last_good(self) -> float:
+        return self.restore_from(self.state.last_good)
+
+    def restore_with_retry(self, deadline: float, uninstalled: bool = False) -> float | None:
+        """Restore from the last good build or the newest intact backup; retry while skins/ is not
+        writable yet (KeyHelp's chown -R still pending). None (logged) if it could not."""
+        last: Exception | None = None
         while True:
+            found = self.restore_source(uninstalled)
+            if found is None:
+                self.log.error("could not restore skins/lumen: the last good build and the backups are gone or damaged")
+                return None
+            what, source = found
             try:
-                seconds = self.restore_last_good()
-                self.log.notice(f"restored skins/lumen from the last good build in {seconds:.3f} s "
+                seconds = self.restore_from(source)
+                self.log.notice(f"restored skins/lumen from {what} in {seconds:.3f} s "
                                 f"({describe(read_stamp(self.skin_dir))})")
                 return seconds
             except (PermissionError, FileNotFoundError) as exc:
                 last = exc
+            except LumenError as exc:
+                self.log.error(exc.render().removeprefix("error: "))
+                return None
             if self.clock() >= deadline:
                 self.log.error(f"could not restore skins/lumen: {last}")
                 return None
@@ -377,11 +491,7 @@ class Lifecycle:
 
     def write_notes(self, text: str) -> None:
         self.ensure_state_root()
-        path = self.state.rollback_notes
-        path.write_text(text, encoding="utf-8")
-        os.chmod(path, 0o644)
-        with contextlib.suppress(OSError):
-            chown_path(path, self.owner())
+        atomic_write(self.state.rollback_notes, text, self.owner())
 
     def undo_notes(self, backup: Path | None) -> str:
         lines = ["Undo:"]
@@ -579,14 +689,15 @@ class Lifecycle:
             self.sleep(POLL_SECONDS)
         return True
 
-    def _wait_settled(self, deadline: float) -> bool:
+    def _wait_settled(self, deadline: float, uninstalled: bool = False) -> bool:
         """Wait until the watched files have not changed for ``settle`` seconds. A skins/lumen that
         disappears meanwhile (the update is still running) is restored again at once."""
         last = self.fingerprint()
         since = self.clock()
         while True:
-            if (self.extracted() and not (self.skin_dir / STAMP_NAME).is_file() and self.last_good_ok()):
-                if self.restore_with_retry(deadline) is None:
+            if (self.extracted() and not (self.skin_dir / STAMP_NAME).is_file()
+                    and self.restore_source(uninstalled) is not None):
+                if self.restore_with_retry(deadline, uninstalled) is None:
                     return False
             if self.clock() - since >= self.settle and self.extracted():
                 return True
@@ -597,32 +708,47 @@ class Lifecycle:
             if current != last:
                 last, since = current, self.clock()
 
+    def _down(self, why: str) -> int:
+        """Webmail is down (system skin lumen, no usable skins/lumen): error level, exit 1."""
+        self.log.error(f"webmail is down: no usable skins/lumen while the system skin is lumen; {why}")
+        return EXIT_ERROR
+
     def _sync_pass(self, force: bool) -> int:
         state = SyncState.load(self.state)
         deadline = self.clock() + self.wait
         if not self._wait_until(self.extracted, deadline):
+            missing = ", ".join(rel for rel in EXTRACTED_FILES if not (self.roundcube / rel).is_file())
+            if self.system_skin_is_lumen():
+                return self._down(f"the Roundcube tree at {self.roundcube} is still incomplete after {self.wait:g} s "
+                                  f"({missing} missing), so no build can be put back; the next run checks again")
             self.log.warning(f"the Roundcube tree at {self.roundcube} is still incomplete after {self.wait:g} s "
-                             "(program/include/iniset.php or skins/elastic/meta.json missing); next run checks again")
+                             f"({missing} missing); next run checks again")
             return EXIT_TEMPFAIL
         skin_problems = integrity_problems(self.skin_dir)
+        outage = False
         if skin_problems:
-            if self.last_good_ok():
-                if self.restore_with_retry(deadline) is None:
+            source = self.restore_source(bool(state.uninstalled))
+            if source is not None:
+                if self.restore_with_retry(deadline, bool(state.uninstalled)) is None:
+                    if self.system_skin_is_lumen():
+                        return self._down("restoring it failed (see above); the next run tries again")
                     return EXIT_TEMPFAIL
                 skin_problems = []
             elif state.uninstalled:
                 self.log.info("Lumen was uninstalled here; nothing to do")
                 return EXIT_OK
+            elif self.system_skin_is_lumen():
+                # Nothing to restore from (the state folder was lost or damaged): every webmail page
+                # fails until a build exists, so build one now instead of waiting for an install.
+                outage = True
+                self.log.error("webmail is down: no usable skins/lumen while the system skin is lumen, and no intact "
+                               "last good build or backup to restore; building it now"
+                               + (": " + "; ".join(skin_problems) if os.path.lexists(self.skin_dir) else ""))
             elif not os.path.lexists(self.skin_dir) and not self.state.last_good.exists():
-                if not self.system_skin_is_lumen():
-                    self.log.info("Lumen is not installed here (no skins/lumen and no last good build); nothing to do")
-                    return EXIT_OK
-                # The state folder was lost and an update removed skins/lumen: webmail fails until
-                # a build exists, so build one instead of waiting for someone to run install.
-                self.log.warning("the system skin is lumen, but there is no skins/lumen and no last good build; "
-                                 "building it now")
+                self.log.info("Lumen is not installed here (no skins/lumen and no last good build); nothing to do")
+                return EXIT_OK
             else:
-                self.log.warning("skins/lumen is missing or damaged and the last good build cannot be used: "
+                self.log.warning("skins/lumen is missing or damaged and there is no intact last good build or backup: "
                                  + "; ".join(skin_problems + integrity_problems(self.state.last_good, limit=2)))
         elif state.uninstalled and not self.state.last_good.exists():
             self.log.info("skins/lumen is back after an uninstall; run install to manage it again")
@@ -640,13 +766,17 @@ class Lifecycle:
         if self.state.rebuild_request.exists():
             reasons.append("a rebuild was requested (request-rebuild)")
         if not reasons:
-            self._adopt_or_refresh_last_good(rc, stamp)
-            if state.failure or state.deferred:
-                state.failure = state.deferred = None
-                state.save(self.state, self.owner())
-            self.log.info(f"skins/lumen is current ({describe(stamp)})")
+            self._current(rc, stamp, state)
             return EXIT_OK
-        return self._rebuild(state, reasons, deadline, forced=force or self.state.rebuild_request.exists())
+        return self._rebuild(state, reasons, deadline, forced=force or self.state.rebuild_request.exists(),
+                             outage=outage)
+
+    def _current(self, rc: Roundcube, stamp: dict | None, state: SyncState) -> None:
+        self._adopt_or_refresh_last_good(rc, stamp)
+        if state.failure or state.deferred:
+            state.failure = state.deferred = None
+            state.save(self.state, self.owner())
+        self.log.info(f"skins/lumen is current ({describe(stamp)})")
 
     def _adopt_or_refresh_last_good(self, rc: Roundcube, stamp: dict | None) -> None:
         if self.last_good_ok() and read_stamp(self.state.last_good) == stamp:
@@ -659,40 +789,74 @@ class Lifecycle:
         self.save_last_good(self.skin_dir)
         self.log.notice(f"saved skins/lumen as the last good build ({describe(stamp)})")
 
-    def _blocked(self, state: SyncState, want: Wanted, forced: bool) -> bool:
-        """True (and logged) when the back-off or the memory check holds the rebuild back."""
+    def _blocked(self, state: SyncState, want: Wanted, forced: bool, outage: bool = False) -> str | None:
+        """Why the back-off or the memory check holds the rebuild back (logged), or None.
+
+        While webmail is down the back-off does not apply and the memory floor is the emergency
+        one. A deferral is saved as {kind, since} only, so that a timer run with nothing new
+        writes nothing; it is logged at notice level once, then at info level, and at warning
+        level every DEFERRAL_WARN_SECONDS."""
         now = self.now()
-        if state.failure and state.failure.get("key") == want.key() and not forced:
+        if state.failure and state.failure.get("key") == want.key() and not forced and not outage:
             next_attempt = parse_iso(state.failure.get("next_attempt"))
             if next_attempt and now < next_attempt:
                 self.log.info(f"the last rebuild for these inputs failed; the next attempt is after {iso(next_attempt)}")
-                return True
+                return f"the last rebuild failed; the next attempt is after {iso(next_attempt)}"
+        need = self.min_available_mb
+        if outage and need:
+            need = min(need, EMERGENCY_MIN_AVAILABLE_MB)
         available = self.meminfo()
-        if self.min_available_mb and available is not None and available < self.min_available_mb:
-            reason = (f"only {available} MB of memory available, the compile needs {self.min_available_mb} MB; "
-                      "the active build stays")
-            first = (state.deferred or {}).get("kind") != "memory"
-            state.deferred = {"kind": "memory", "reason": reason,
-                              "since": iso(now) if first else (state.deferred or {}).get("since")}
-            state.save(self.state, self.owner())
-            self.log.emit("notice" if first else "info", f"rebuild deferred: {reason}")
-            return True
-        return False
+        if not need or available is None or available >= need:
+            return None
+        reason = f"only {available} MB of memory available, the compile needs {need} MB"
+        deferred = state.deferred or {}
+        first = deferred.get("kind") != "memory"
+        since = now if first else (parse_iso(deferred.get("since")) or now)
+        warned = parse_iso(deferred.get("warned")) or since
+        level = "notice" if first else "info"
+        if not first and (now - since).total_seconds() >= DEFERRAL_WARN_SECONDS \
+                and (now - warned).total_seconds() >= DEFERRAL_WARN_SECONDS:
+            level = "warning"
+            warned = now
+        state.deferred = {"kind": "memory", "since": iso(since)}
+        if warned != since:
+            state.deferred["warned"] = iso(warned)
+        state.save(self.state, self.owner())
+        active = describe(read_stamp(self.skin_dir)) if not integrity_problems(self.skin_dir) else None
+        keeps = f"skins/lumen keeps {active}" if active else "there is no usable skins/lumen"
+        waited = "" if first else f" (deferred since {iso(since)})"
+        if not outage:
+            self.log.emit(level, f"rebuild deferred: {reason}; {keeps}{waited}")
+        return reason + waited
 
-    def _rebuild(self, state: SyncState, reasons: list[str], deadline: float, forced: bool) -> int:
+    def _rebuild(self, state: SyncState, reasons: list[str], deadline: float, forced: bool,
+                 outage: bool = False) -> int:
         self.log.info("rebuild needed: " + "; ".join(reasons))
         # Cheap checks first: a deferred or backed-off rebuild must not hold the lock while settling.
-        if self._blocked(state, self.wanted(Roundcube.at(self.roundcube)), forced):
-            return EXIT_TEMPFAIL
-        if not self._wait_settled(deadline):
+        blocked = self._blocked(state, self.wanted(Roundcube.at(self.roundcube)), forced, outage)
+        if blocked:
+            return self._down(f"the build waits: {blocked}; the next run tries again") if outage else EXIT_TEMPFAIL
+        if not self._wait_settled(deadline, bool(state.uninstalled)):
+            if outage:
+                return self._down(f"the Roundcube tree at {self.roundcube} kept changing for {self.wait:g} s; "
+                                  "the next run tries again")
             self.log.warning(f"the Roundcube tree at {self.roundcube} kept changing for {self.wait:g} s; "
                              "the rebuild waits for the next run")
             return EXIT_TEMPFAIL
         rc = Roundcube.at(self.roundcube)
         want = self.wanted(rc)
         key = want.key()
-        if self._blocked(state, want, forced):
-            return EXIT_TEMPFAIL
+        if not forced and not integrity_problems(self.skin_dir):
+            # The first check may have looked at a tree that was still being extracted (a digest of
+            # half of Elastic's files). Now that it is quiet, check again before compiling.
+            outage = False
+            stamp = read_stamp(self.skin_dir)
+            if not stale_reasons(stamp, want):
+                self._current(rc, stamp, state)
+                return EXIT_OK
+        blocked = self._blocked(state, want, forced, outage)
+        if blocked:
+            return self._down(f"the build waits: {blocked}; the next run tries again") if outage else EXIT_TEMPFAIL
         start = self.clock()
         inputs = (want.roundcube_version, want.elastic_digest)
         run = self.new_run_dir()
@@ -702,6 +866,8 @@ class Lifecycle:
             except (LumenError, OSError) as exc:
                 error = exc if isinstance(exc, LumenError) else LumenError(f"the build stopped: {exc}")
                 self._record_failure(state, key, error)
+                if outage:
+                    self._down("the build failed (see above); the next run tries again")
                 return error.exit_code
             try:
                 after = Roundcube.at(self.roundcube)
@@ -711,7 +877,8 @@ class Lifecycle:
             if changed:
                 self.log.notice("Roundcube changed while the skin was being built; the build is discarded and the "
                                 "next run starts again")
-                return EXIT_TEMPFAIL
+                return self._down("Roundcube changed during the build; the next run tries again") if outage \
+                    else EXIT_TEMPFAIL
             backup = self.put_in_place(staged, "replaced-stale")
             self.save_last_good(self.skin_dir)
         finally:
@@ -790,9 +957,7 @@ class Lifecycle:
             print(f"dry run: would create {self.state.rebuild_request}")
             return EXIT_OK
         with self.lock():
-            self.state.rebuild_request.write_text(iso(self.now()) + "\n", encoding="utf-8")
-            with contextlib.suppress(OSError):
-                chown_path(self.state.rebuild_request, self.owner())
+            atomic_write(self.state.rebuild_request, iso(self.now()) + "\n", self.owner())
         self.log.notice("the next sync run rebuilds skins/lumen (systemctl start lumen-mail-sync.service runs it now)")
         return EXIT_OK
 
@@ -825,6 +990,7 @@ class Lifecycle:
             return EXIT_OK
         with self.lock():
             self.cleanup_leftovers()
+            self.check_skins_dir()
             dest = self.state.backups / stamp_name(self.now(), "uninstall") / SKIN_NAME
             if present:
                 move_tree(self.skin_dir, dest)
