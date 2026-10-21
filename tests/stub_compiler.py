@@ -4,7 +4,8 @@
 For each job it follows the @import lines of the entry (relative paths, like LESS) and collects
 every url(...) as written, as less does with rewriteUrls "off". The output is one rule per url
 plus a marker rule. Symlinks are not resolved, like less. Set STUB_COMPILER_FAIL=1 to get a
-compile error back.
+compile error back. With STUB_COMPILER_MARK=<file> every start appends a line to that file, so
+tests can prove that a run did not start the compiler.
 """
 
 from __future__ import annotations
@@ -35,6 +36,10 @@ def collect(path: str, seen: set[str], urls: list[str]) -> None:
 
 
 def main() -> int:
+    mark = os.environ.get("STUB_COMPILER_MARK")
+    if mark:
+        with open(mark, "a", encoding="utf-8") as fh:
+            fh.write("started\n")
     job = json.load(sys.stdin)
     if os.environ.get("STUB_COMPILER_FAIL"):
         print(json.dumps({"ok": False, "error": "variable @color-x is undefined", "file": job["jobs"][0]["entry"],

@@ -10,6 +10,10 @@ Checks, each with a message that names the file:
     current target content;
   * the stamp matches the folder (file hashes) and the Roundcube install (version, Elastic digest)
     and, when the sources are known, the Lumen version.
+
+exact=False (install --from --allow-mismatch, for a release package built against another release
+of the same Roundcube series) skips the two checks that tie a build to one Elastic: the stamp's
+Roundcube version and Elastic digest, and the cache-busters of url()s into skins/elastic.
 """
 
 from __future__ import annotations
@@ -37,6 +41,8 @@ REQUIRED = (
     "localization/de_DE.inc",
     "fonts/Sora-Variable.woff",
     "fonts/Sora-OFL.txt",
+    "LICENSE",
+    "NOTICE",
     *CSS_OUTPUTS,
     STAMP_NAME,
 )
@@ -44,7 +50,7 @@ META_CONFIG_KEYS = {"favicon"}
 BANNER_MARK = "This compiled file is an adaptation of Elastic and is licensed under CC BY-SA 3.0."
 
 
-def verify(skin: Path, rc: Roundcube, sources: Sources | None = None) -> list[str]:
+def verify(skin: Path, rc: Roundcube, sources: Sources | None = None, exact: bool = True) -> list[str]:
     skin = Path(skin)
     problems: list[str] = []
     if not skin.is_dir():
@@ -55,9 +61,9 @@ def verify(skin: Path, rc: Roundcube, sources: Sources | None = None) -> list[st
     problems += _check_meta(skin)
     problems += _check_no_elastic_copies(skin, rc)
     problems += _check_templates(skin, rc)
-    problems += _check_css(skin, rc)
+    problems += _check_css(skin, rc, exact)
     problems += _check_thumbnail(skin)
-    problems += _check_stamp(skin, rc, sources)
+    problems += _check_stamp(skin, rc, sources, exact)
     return problems
 
 
@@ -117,7 +123,7 @@ def _check_templates(skin: Path, rc: Roundcube) -> list[str]:
     return problems
 
 
-def _check_css(skin: Path, rc: Roundcube) -> list[str]:
+def _check_css(skin: Path, rc: Roundcube, exact: bool = True) -> list[str]:
     problems = []
     static_types = rc.static_types()
     for rel in CSS_OUTPUTS:
@@ -149,6 +155,8 @@ def _check_css(skin: Path, rc: Roundcube) -> list[str]:
             ext = file.suffix.lstrip(".").lower()
             if static_types is not None and ext not in static_types:
                 problems.append(f"{rel}: url({url.value}): static.php does not serve .{ext} files")
+            if not exact and target.startswith(f"skins/{PARENT_SKIN}/"):
+                continue
             want = f"v={short_hash(file)}"
             if want not in query.split("&"):
                 problems.append(f"{rel}: url({url.value}) lacks the cache-buster {want} (target changed or not stamped)")
@@ -168,7 +176,7 @@ def _check_thumbnail(skin: Path) -> list[str]:
     return []
 
 
-def _check_stamp(skin: Path, rc: Roundcube, sources: Sources | None) -> list[str]:
+def _check_stamp(skin: Path, rc: Roundcube, sources: Sources | None, exact: bool = True) -> list[str]:
     path = skin / STAMP_NAME
     if not path.is_file():
         return []
@@ -179,16 +187,19 @@ def _check_stamp(skin: Path, rc: Roundcube, sources: Sources | None) -> list[str
     problems = []
     if stamp.get("schema") != STAMP_SCHEMA:
         problems.append(f"{STAMP_NAME}: schema {stamp.get('schema')!r}, expected {STAMP_SCHEMA}")
-    try:
-        rc_version = rc.version()
-    except Exception as exc:  # noqa: BLE001 - reported as a problem
-        rc_version = None
-        problems.append(str(exc))
-    if rc_version and stamp.get("roundcube_version") != rc_version:
-        problems.append(f"{STAMP_NAME}: built for Roundcube {stamp.get('roundcube_version')}, installed is {rc_version}")
-    digest = rc.elastic_digest()
-    if stamp.get("elastic_digest") != digest:
-        problems.append(f"{STAMP_NAME}: built from different Elastic sources ({stamp.get('elastic_digest')} != {digest})")
+    if exact:
+        try:
+            rc_version = rc.version()
+        except Exception as exc:  # noqa: BLE001 - reported as a problem
+            rc_version = None
+            problems.append(str(exc))
+        if rc_version and stamp.get("roundcube_version") != rc_version:
+            problems.append(f"{STAMP_NAME}: built for Roundcube {stamp.get('roundcube_version')}, "
+                            f"installed is {rc_version}")
+        digest = rc.elastic_digest()
+        if stamp.get("elastic_digest") != digest:
+            problems.append(f"{STAMP_NAME}: built from different Elastic sources "
+                            f"({stamp.get('elastic_digest')} != {digest})")
     if sources is not None:
         try:
             version = sources.version

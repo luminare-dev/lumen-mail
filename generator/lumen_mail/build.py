@@ -50,6 +50,9 @@ ENTRIES = {
 }
 CSS_OUTPUTS = ("styles/styles.css", "styles/styles.min.css", "styles/embed.css", "styles/embed.min.css")
 PALETTE_FILE = "lumen-palette.js"
+# Copied from the source root into every build (and so into every release package). static.php
+# does not serve files without an extension, so they are not reachable over the web.
+LEGAL_FILES = ("LICENSE", "NOTICE")
 BANNER = """/*! Lumen {lumen_version} for Roundcube Webmail {roundcube_version}: {name}
  * Compiled on this server from two sources:
  *  - the Roundcube "Elastic" skin by Aleksander Machniak and The Roundcube Dev Team,
@@ -137,7 +140,7 @@ def build(opts: BuildOptions) -> BuildResult:
             (styles / name).unlink()
         for job in jobs:
             job.entry.unlink()
-        now = (opts.now or _dt.datetime.now(_dt.timezone.utc)).replace(microsecond=0)
+        now = (opts.now or source_date() or _dt.datetime.now(_dt.timezone.utc)).replace(microsecond=0)
         stamp = {
             "schema": STAMP_SCHEMA,
             "skin": SKIN_NAME,
@@ -168,6 +171,14 @@ def build(opts: BuildOptions) -> BuildResult:
     return BuildResult(out=out, stamp=stamp, sizes=sizes)
 
 
+def source_date() -> _dt.datetime | None:
+    """SOURCE_DATE_EPOCH (reproducible builds), if set."""
+    value = os.environ.get("SOURCE_DATE_EPOCH", "").strip()
+    if not value.isdigit():
+        return None
+    return _dt.datetime.fromtimestamp(int(value), _dt.timezone.utc)
+
+
 def assemble_static(sources: Sources, skin: Path, palette: bool, lumen_version: str,
                     roundcube_version: str) -> None:
     """Copy our static skin files; assemble wrapper templates; render the README."""
@@ -184,6 +195,8 @@ def assemble_static(sources: Sources, skin: Path, palette: bool, lumen_version: 
                               encoding="utf-8")
         else:
             shutil.copy2(src / rel, target)
+    for name in LEGAL_FILES:
+        shutil.copy2(sources.root / name, skin / name)
     if palette:
         shutil.copy2(sources.palette, skin / PALETTE_FILE)
 

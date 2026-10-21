@@ -4,6 +4,7 @@ The same layout is used in a git checkout and in the runtime copy that install-r
 (for example /opt/lumen-mail), so the sync job never depends on the checkout:
 
     <root>/version.txt                 project version (release-please)
+    <root>/LICENSE, <root>/NOTICE      copied into every build
     <root>/src/less/                   our LESS: tokens, Elastic variable overrides, component layer
     <root>/skin/                       our static skin files (templates, images, fonts, ...)
     <root>/palette/dist/lumen-palette.js   the built command palette (optional, see --no-palette)
@@ -74,14 +75,15 @@ class Sources:
         return value
 
     def check(self) -> None:
-        missing = [str(p) for p in [self.less_dir / name for name in LESS_FILES] + [self.skin_dir / "meta.json"]
-                   if not p.is_file()]
+        wanted = [self.less_dir / name for name in LESS_FILES] + [self.skin_dir / "meta.json"]
+        wanted += [self.root / name for name in ("LICENSE", "NOTICE")]
+        missing = [str(p) for p in wanted if not p.is_file()]
         if missing:
             raise LumenError(f"the lumen-mail sources at {self.root} are incomplete", [f"missing {m}" for m in missing])
 
     def digest(self, include_palette: bool) -> str:
         """sha256 over everything the build reads from us (detects a changed runtime copy)."""
-        patterns = ["version.txt", "src/less/*.less", "skin/**/*", "generator/lumen_mail/*.py",
+        patterns = ["version.txt", "LICENSE", "NOTICE", "src/less/*.less", "skin/**/*", "generator/lumen_mail/*.py",
                     "generator/lumen_mail/compile.mjs"]
         digest = tree_digest(self.root, patterns)
         if include_palette and self.palette.is_file():
