@@ -319,7 +319,7 @@ export function App({ setLang }: { setLang: (lang: Lang) => void }) {
         </p>
         <p>
           Not affiliated with or endorsed by the Roundcube project. The Luminare name and logo are not licensed
-          (NOTICE). Sora: SIL Open Font License 1.1. Includes React and React DOM (MIT).
+          (NOTICE). Sora: SIL Open Font License 1.1. Includes React, React DOM and scheduler (MIT).
         </p>
       </footer>
     </>

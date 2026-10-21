@@ -27,8 +27,8 @@ const TYPES = {
   ".woff": "font/woff", ".woff2": "font/woff2", ".json": "application/json",
 };
 const BANNER =
-  "/*! lumen-mail gallery | MIT | https://github.com/luminare-dev/lumen-mail | includes React and React DOM " +
-  "(MIT, Copyright (c) Meta Platforms, Inc. and affiliates) */\n";
+  "/*! lumen-mail gallery | MIT | https://github.com/luminare-dev/lumen-mail | includes React, React DOM and " +
+  "scheduler (MIT, Copyright (c) Meta Platforms, Inc. and affiliates; licence texts: THIRD_PARTY_NOTICES.md) */\n";
 
 function lumenGallery() {
   const skin = findSkin(skins);

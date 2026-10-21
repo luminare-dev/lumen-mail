@@ -46,13 +46,13 @@ function TaskMenu({ task, dark }: { task: "mail" | "settings"; dark: boolean }) 
 
 const MESSAGES: [string, string, string, string, boolean, boolean][] = [
   // from, subject, date, size, unread, flagged
-  ["Grace Hopper", "Compiler notes for Friday", "10:42", "12 KB", true, false],
-  ["Ada Lovelace", "Re: Analytical engine, part two", "09:15", "48 KB", true, true],
+  ["Mira Kovač", "Compiler notes for Friday", "10:42", "12 KB", true, false],
+  ["Jonas Feld", "Re: Engine design, part two", "09:15", "48 KB", true, true],
   ["Team calendar", "Weekly planning: agenda", "Yesterday", "6 KB", false, false],
-  ["Margaret Hamilton", "Review of the landing checklist", "Yesterday", "220 KB", false, false],
-  ["Linus Pauling", "Lab results and next steps", "Mon", "31 KB", false, true],
-  ["Katherine Johnson", "Trajectory figures", "Sun", "9 KB", false, false],
-  ["Alan Turing", "Notes from the reading group", "Sat", "17 KB", false, false],
+  ["Ines Laurent", "Review of the release checklist", "Yesterday", "220 KB", false, false],
+  ["Theo Brandt", "Lab results and next steps", "Mon", "31 KB", false, true],
+  ["Lena Ortiz", "Quarterly figures", "Sun", "9 KB", false, false],
+  ["Sam Okafor", "Notes from the reading group", "Sat", "17 KB", false, false],
 ];
 
 function MailPage({ dark }: { dark: boolean }) {
@@ -61,7 +61,7 @@ function MailPage({ dark }: { dark: boolean }) {
       <TaskMenu task="mail" dark={dark} />
       <div id="layout-sidebar" className="listbox" role="navigation" aria-label="Folders">
         <div className="header">
-          <span className="header-title username">ada@example.com</span>
+          <span className="header-title username">user@example.com</span>
         </div>
         <div id="folderlist-content" className="scroller">
           <ul id="mailboxlist" className="treelist listing folderlist">
@@ -164,10 +164,10 @@ function MailPage({ dark }: { dark: boolean }) {
         <div className="formcontent">
           <h2 className="subject">Compiler notes for Friday</h2>
           <p>
-            <strong>Grace Hopper</strong> to Ada Lovelace, today 10:42
+            <strong>Mira Kovač</strong> to Jonas Feld, today 10:42
           </p>
           <div className="boxinformation">The message contains remote images. Show them?</div>
-          <p>Hi Ada,</p>
+          <p>Hi Jonas,</p>
           <p>
             here are the notes from Thursday. The new pass shortens the build by a third; the open question is
             whether the error messages stay as clear. Let's look at it together on Friday.
