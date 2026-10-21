@@ -114,9 +114,12 @@ export function Palette({ rc, doc = document, trigger = null, getItems = collect
       event.stopPropagation();
       toggle();
     };
+    // A frame keeps its WindowProxy when it navigates (the message preview loads each message),
+    // but its listeners go with the old document: attach again on every load. Adding the same
+    // listener twice to one document is a no-op.
     const watched = new Set<Window>();
     const watch = (frame: Window | null) => {
-      if (!frame || watched.has(frame)) return;
+      if (!frame) return;
       try {
         frame.addEventListener("keydown", onKey, true);
         watched.add(frame);

@@ -265,6 +265,17 @@ describe("trigger and frames", () => {
     expect(screen.getByRole("dialog")).toBeTruthy();
   });
 
+  it("listens again each time a frame loads a new document", () => {
+    const frame = document.createElement("iframe");
+    document.body.append(frame);
+    const add = vi.spyOn(frame.contentWindow!, "addEventListener");
+    setup();
+    add.mockClear();
+    frame.dispatchEvent(new Event("load"));
+    frame.dispatchEvent(new Event("load"));
+    expect(add.mock.calls.filter(([type, , capture]) => type === "keydown" && capture === true)).toHaveLength(2);
+  });
+
   it("recognises editor targets from other documents (duck-typed)", () => {
     const frame = document.createElement("iframe");
     document.body.append(frame);
