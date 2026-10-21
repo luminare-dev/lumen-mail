@@ -49,6 +49,8 @@ the copy inside an `install-runtime` prefix are taken as they are.
 - Inside a text area, the HTML editor and other editable text, Ctrl+K belongs to the editor (in
   the HTML editor it inserts a link). Click outside the editor first.
 - On a Mac the shortcut is Cmd+K.
+- While one of Roundcube's dialogs is open (for example Create folder), Ctrl+K and **Jump to** do
+  nothing: the dialog keeps the keyboard. Close it first.
 - `skins/lumen/lumen-palette.js` must load: the browser's developer tools show the request. A
   user with another skin in their preferences does not get it.
 
@@ -75,6 +77,17 @@ server.
 
 **Fix:** add `lumen` to `skins_allowed`, or fix the owner and modes of `skins/lumen`.
 
+**On KeyHelp:** if **Configuration → Webmail → Interface skin** still lists only Elastic while
+`ls /home/keyhelp/www/roundcube/skins/` shows `lumen` and the folder belongs to `keyhelp:keyhelp`,
+KeyHelp uses a fixed list. KeyHelp writes the skin into `config.inc.php` from its own setting and
+offers no place for a local addition, and lumen-mail never edits that file. Then:
+
+- each user can still choose Lumen under **Settings → Preferences → User Interface → Interface
+  skin** (Roundcube shows this chooser as soon as `skins/` holds more than one skin);
+- a system-wide default needs support from KeyHelp;
+- keep the sync units installed either way: a user's `lumen` preference falls back to the system
+  skin while `skins/lumen` is missing after a Roundcube update.
+
 ## Webmail shows an error page after a Roundcube update on KeyHelp
 
 **Cause:** KeyHelp replaced the Roundcube folder, which removed `skins/lumen`, while Lumen is the
@@ -87,9 +100,28 @@ the units did not run (`systemctl status lumen-mail-sync.path lumen-mail-sync.ti
 ## `another lumen-mail run holds .../lock` (exit code 75)
 
 **Cause:** an install, sync, rollback or uninstall is running, for example the unit after a
-Roundcube update.
+Roundcube update. From the unit this is logged at notice level, not as an error.
 
 **Fix:** wait and run the command again; `--lock-timeout 300` waits up to five minutes.
+
+## `... belongs to root, so lumen-mail cannot tell which user should own the skin` (exit code 5)
+
+**Cause:** started as root, lumen-mail continues as the owner of `<roundcube>/skins`
+([command reference](cli.md#running-as-root)), and that folder belongs to root.
+
+**Fix:** pass the user that owns your Roundcube files, for example `--owner www-data:www-data`,
+or `--owner root:root` if root really owns them (then run the sync unit as root too, with
+`Environment=LUMEN_MAIL_OWNER=root:root`). Related refusals: a `--roundcube` path with a symbolic
+link in it (pass the real path), and a `skins/`, `.lumen-mail`, state folder or lock file that is
+a symbolic link (check who created it, remove it, run the command again).
+
+## `cannot read the lumen-mail sources as keyhelp`
+
+**Cause:** started as root, lumen-mail continues as the Roundcube owner, who cannot read a checkout
+in root's home folder.
+
+**Fix:** use the runtime: `install-runtime --prefix /opt/lumen-mail` once, then
+`/opt/lumen-mail/bin/lumen-mail ...`.
 
 ## `uninstall` says `the configured system skin is lumen` (exit code 5)
 

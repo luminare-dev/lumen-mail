@@ -24,7 +24,10 @@ shows.
 KeyHelp keeps Roundcube in `/home/keyhelp/www/roundcube` (owner `keyhelp:keyhelp`) and replaces
 that whole folder when it updates Roundcube. The sync units put `skins/lumen` back within
 seconds and rebuild it for the new release ([update safety](update-safety.md)). Run everything
-below as root.
+below as root: `install-runtime` writes `/opt/lumen-mail` as root, and every other command
+prepares `/var/lib/lumen-mail` as root and then continues as `keyhelp`, the owner of
+`skins/` ([running as root](cli.md#running-as-root)). The compile never runs as root, because
+`keyhelp` also runs the webmail's PHP and can change Elastic's LESS.
 
 1. Get the sources, the locked packages and the command palette:
 
@@ -50,8 +53,9 @@ below as root.
    PYTHONPATH=generator python3 -m lumen_mail install-runtime --prefix /opt/lumen-mail
    ```
 
-3. Build, verify and install the skin (owner `keyhelp:keyhelp`, folders 755, files 644; the state
-   folder `/var/lib/lumen-mail` gets the same owner):
+3. Build, verify and install the skin (it runs as `keyhelp`, so everything it writes belongs to
+   `keyhelp:keyhelp`, folders 755, files 644; root first creates the state folder
+   `/var/lib/lumen-mail` and gives it to `keyhelp`):
 
    ```bash
    /opt/lumen-mail/bin/lumen-mail install --roundcube /home/keyhelp/www/roundcube --dry-run
@@ -81,12 +85,24 @@ below as root.
    `config.inc.php`; lumen-mail never edits that file. If Lumen is not in the list, check
    `ls /home/keyhelp/www/roundcube/skins/` and the owner of `skins/lumen`.
 
+   If the list still shows only Elastic while `skins/lumen` exists and belongs to
+   `keyhelp:keyhelp`, KeyHelp uses a fixed list of skins. Its `config.inc.php` template writes the
+   skin from KeyHelp's own setting and has no place for a local addition, so there is then no
+   lasting system-wide way to select Lumen without KeyHelp's support (lumen-mail does not edit
+   `config.inc.php`, and KeyHelp would overwrite it). Each user can still choose Lumen under
+   **Settings → Preferences → User Interface → Interface skin**, which Roundcube shows as soon as
+   `skins/` holds more than one skin. Keep the sync units installed either way: a user's `lumen`
+   preference falls back to the system skin while `skins/lumen` is missing after an update.
+
 KeyHelp is a registered trademark of Keyweb AG. This project is not affiliated with or endorsed
 by Keyweb AG.
 
 ## Plain Roundcube
 
 The same steps, with your paths and the owner of `<roundcube>/skins` (for example `www-data`).
+Started as root, lumen-mail continues as that owner. If root owns your Roundcube files, add
+`--owner root:root` (and `Environment=LUMEN_MAIL_OWNER=root:root` to the service below, which then
+runs as root): commands that write refuse a tree that belongs to root otherwise.
 
 ```bash
 git clone https://github.com/luminare-dev/lumen-mail.git && cd lumen-mail

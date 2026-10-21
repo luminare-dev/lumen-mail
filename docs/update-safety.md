@@ -54,26 +54,41 @@ If the path unit misses an update, the timer runs the same service within 2 minu
 
 ## What one run does
 
-1. **Wait for the tree.** Poll every 50 ms until `program/include/iniset.php` and
-   `skins/elastic/meta.json` exist again (step 2 has reached `skins/`). Up to 300 s, then exit 75.
+1. **Wait for the tree.** Poll every 50 ms until `program/include/iniset.php`,
+   `skins/elastic/meta.json` and `skins/elastic/templates/includes/footer.html` exist again (step 2
+   has extracted Elastic's templates). Up to 300 s, then exit 75 (exit 1 and "webmail is down" at
+   error level if the system skin is lumen). The footer matters: Lumen's footer wrapper includes
+   Elastic's, and without it Roundcube's include would find the wrapper itself and recurse until
+   PHP stops, a fatal error on every page instead of Roundcube's own error page.
 2. **Fast restore.** If `skins/lumen` is missing or does not match its stamp (every file's sha256),
-   copy the last good build from `/var/lib/lumen-mail/last-good` to
+   copy the last good build from `/var/lib/lumen-mail/last-good` (or, if that copy is missing or
+   damaged, the newest intact backup that is not from `uninstall`) to
    `<roundcube>/.lumen-mail/run-*/lumen` and rename it into `skins/`. No Node, no compile, no
    network. In the simulated updates below it took 0.003 to 0.009 s; every restore logs its time
-   (`restored skins/lumen from the last good build in 0.004 s`). If `skins/` is not writable yet
-   (step 4 not done and the archive had another owner), it retries every 200 ms.
+   and source (`restored skins/lumen from the last good build in 0.004 s`). If `skins/` is not
+   writable yet (step 4 not done and the archive had another owner), it retries every 200 ms. A
+   copy that fails (disk full, file size limit) is logged as one readable error line.
 3. **Freshness.** Compare the stamp of `skins/lumen` with the installed Roundcube version, a
    sha256 digest of Elastic's LESS sources and templates, the lumen-mail version and a digest of
    lumen-mail's own sources. If all match, save the build as the last good copy when that copy is
    missing, and stop. This is the 2-minute no-op: it writes nothing and starts no compiler.
 4. **Rebuild** (stale stamp only). Wait until the watched files have not changed for 5 s (KeyHelp
-   has finished), skip if the last rebuild for exactly these inputs failed and its back-off has not
-   expired, skip if less than 400 MB of memory is available. Then compile in a temporary folder,
-   verify, and, if Roundcube did not change during the build, swap it into `skins/lumen` with one
-   `renameat2(RENAME_EXCHANGE)` and save it as the new last good build. The replaced build goes to
+   has finished) and check again whether the build is still stale (the first look may have
+   hashed a half-extracted Elastic). Skip if the last rebuild for exactly these inputs failed and
+   its back-off has not expired, and skip if less than 300 MB of memory is available. Then compile
+   in a temporary folder, verify, flush the new files to disk, and, if Roundcube did not change
+   during the build, swap it into `skins/lumen` with one `renameat2(RENAME_EXCHANGE)` and save it
+   as the new last good build (also flushed before its rename). The replaced build goes to
    `/var/lib/lumen-mail/backups/` (the newest 5 are kept).
 5. **Check again.** If the watched files changed during the run, run steps 1 to 4 again (at most
    four passes). This matters because a path unit does not watch while its service runs.
+
+**Webmail down.** If the system skin is lumen and there is no usable `skins/lumen` and nothing to
+restore it from (the state folder was lost or damaged), every page fails. sync then builds at once:
+without the back-off, and with an emergency memory floor of 150 MB instead of 300 MB (the compile
+peaks at about 115 MB and runs inside the unit's 300M cgroup as the OOM killer's first victim). Until
+`skins/lumen` is back, every run logs `webmail is down: ...` at error level and exits 1, so the
+unit shows as failed.
 
 The restored build is made for the old Roundcube release. It works with the new Elastic in most
 cases (Elastic's markup rarely changes within a series); some of Elastic's own icons may show
@@ -134,10 +149,17 @@ someone runs `lumen-mail sync` or switches the Interface skin back to Elastic.
   names), and it is outside `skins/`, so Roundcube's skin chooser never lists it.
 - **No start rate limit** on the service: if systemd's start limit were hit, it would fail the
   path unit too, which then stops watching until someone restarts it.
-- **`OOMScoreAdjust=1000`, `MemoryMax=300M` and the 400 MB check**: the server is small and
-  ClamAV holds about 1 GB. The real compile against Roundcube 1.7.3's Elastic peaked at 114 MB
-  RSS (`/usr/bin/time`, V8 heap capped at 256 MB by `NODE_OPTIONS`), so 300M leaves room. If
-  memory runs out anyway, the kernel kills the compile first.
+- **`OOMScoreAdjust=1000`, `MemoryMax=300M` and the 300 MB check**: the server is small and
+  ClamAV holds about 1 GB. The real compile against Roundcube 1.7.3's Elastic peaked at 106 to
+  115 MB RSS (`/usr/bin/time`, V8 heap capped at 256 MB by `NODE_OPTIONS`), so 300M leaves room. If
+  memory runs out anyway, the kernel kills the compile first. The check was 400 MB at first, but
+  `MemAvailable` on this host is often 290 to 420 MB, which deferred rebuilds for hours; 300 MB is
+  the compile's peak plus about 150 MB. A deferral that lasts 6 hours is logged as a warning.
+- **Never as root.** The Roundcube owner also runs the webmail's PHP and can change Elastic's
+  LESS, which the rebuild compiles, and everything in the state folder. The service runs as that
+  user; a manual command started as root drops to it after preparing the state folder
+  ([command reference](cli.md#running-as-root)). The compile refuses every `@plugin` and reads
+  no file outside the build's folders.
 - **Exit code 75 counts as success** (`SuccessExitStatus=75`): "try again later" (lock busy,
   update still running, low memory, back-off) is not a failure; the timer retries.
 
@@ -155,14 +177,16 @@ systemctl status lumen-mail-sync.path                           # must be "activ
 | Journal message (priority) | Meaning |
 |---|---|
 | `restored skins/lumen from the last good build in N s` (notice) | a Roundcube update or something else removed or damaged `skins/lumen`; it is back |
+| `restored skins/lumen from the backup <name> in N s` (notice) | the same, but the last good copy was missing or damaged; the next current run saves the restored build as the last good copy again |
 | `rebuilt skins/lumen for Roundcube X (Lumen Y) in N s` (notice) | the stamp was stale; the new build is active and saved as the last good copy |
-| `rebuild deferred: only N MB of memory available` (notice, once per episode) | the timer retries every 2 minutes; the active build stays |
+| `rebuild deferred: only N MB of memory available ...` (notice once per episode, warning after 6 h and every 6 h) | the timer retries every 2 minutes; the active build stays |
+| `webmail is down: no usable skins/lumen while the system skin is lumen; ...` (error, every run) | nothing could be restored and the emergency build failed or waits; [runbook](runbook.md) |
 | `rebuild failed (exit N): ...` (error) | the active build stays; next attempt after 10 min, 30 min, 1 h, 2 h, then every 6 h, or at once when the inputs change |
 | `the Roundcube tree ... is still incomplete after 300 s` (warning) | the update did not finish; the timer retries |
 
 `check` exit codes for scripts: 0 current, 10 sync needed, 6 not installed, others are errors
 ([command reference](cli.md#exit-codes)). The systemd unit shows as failed only after a failed
-rebuild (exit 1, 3 or 4).
+rebuild (exit 1, 3 or 4) or while webmail is down (exit 1).
 
 ## Test it
 

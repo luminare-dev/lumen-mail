@@ -4,6 +4,30 @@ Run the generator as `/opt/lumen-mail/bin/lumen-mail <command>` (after `install-
 a checkout, `PYTHONPATH=generator python3 -m lumen_mail <command>`. `<command> --help` lists every
 option. Commands that write accept `--dry-run`, which prints the plan and writes nothing.
 
+## Running as root
+
+Started as root, every command except `verify` and `install-runtime` does one thing as root and
+then continues as the Roundcube owner (the owner of `<roundcube>/skins`, or `--owner`), with no
+supplementary groups:
+
+- commands that write create the state folder if needed and give it and its contents to that
+  user (without following links; the folder's parent must belong to root and be writable only by
+  root);
+- then they drop to that user. Every later step, including the LESS compile, has exactly that
+  user's rights, so the files it writes belong to it without a chown.
+
+The reason: on KeyHelp the Roundcube owner (`keyhelp`) also runs the webmail's PHP. Whoever takes
+over the webmail can change everything that user owns, including Elastic's LESS and the state
+folder, and a root process that followed a planted link or compiled a planted `@plugin` would hand
+over root. The compile also refuses every `@plugin` and reads no file outside the build's folders,
+and the drift check names any `@plugin` in Elastic's LESS (exit 3).
+
+Consequences: the sources must be readable by that user, so run the installed runtime
+(`/opt/lumen-mail/bin/lumen-mail`) rather than a checkout under `/root`. A command that writes
+refuses a Roundcube tree that belongs to root unless `--owner` names the owner (for example
+`--owner root:root` where root really owns Roundcube), and refuses a `--roundcube` path that
+contains a symbolic link (pass the real path). `--owner ''` keeps root and changes no owner.
+
 ## Commands
 
 | Command | What it does |
@@ -27,12 +51,12 @@ option. Commands that write accept `--dry-run`, which prints the plan and writes
 |---|---|---|
 | `--roundcube PATH` | `$LUMEN_MAIL_ROUNDCUBE` | all but `install-runtime` |
 | `--state-dir PATH` | `$LUMEN_MAIL_STATE_DIR`, `$STATE_DIRECTORY` (systemd), `/var/lib/lumen-mail` | lifecycle commands |
-| `--owner SPEC` | `auto`: as root, the owner of `<roundcube>/skins`; otherwise unchanged | writing commands |
+| `--owner SPEC` | `auto` (`$LUMEN_MAIL_OWNER`): as root, the owner of `<roundcube>/skins`, refused if that is root; `user:group` names the user; `''` stays root and changes no owner | every command but `verify` and `install-runtime` (as root: the user it continues as) |
 | `--keep N` | 5 | backups kept in `<state>/backups/` |
 | `--lock-timeout S` | 30 (`$LUMEN_MAIL_LOCK_TIMEOUT`) | seconds to wait for another run, then exit 75 |
 | `--wait S` | 300 (`$LUMEN_MAIL_WAIT`) | `sync`: how long to wait for a complete Roundcube tree |
 | `--settle S` | 5 (`$LUMEN_MAIL_SETTLE`) | `sync`: quiet seconds before a rebuild |
-| `--min-available-mb N` | 400 (`$LUMEN_MAIL_MIN_AVAILABLE_MB`) | `sync`: MemAvailable needed to start the compiler; 0 turns the check off |
+| `--min-available-mb N` | 300 (`$LUMEN_MAIL_MIN_AVAILABLE_MB`) | `sync`: MemAvailable needed to start the compiler; 0 turns the check off; while webmail is down the floor is 150 |
 | `--rebuild` | off | `sync`: rebuild even if current |
 | `--palette FILE` | `<source>/palette/dist/lumen-palette.js` (`$LUMEN_MAIL_PALETTE`); every build includes the palette and stops if the file is missing, there is no option to leave it out | building commands, `check`, `status`, `install-runtime` |
 | `--source PATH`, `--node-modules PATH` | this checkout or runtime (`$LUMEN_MAIL_SOURCE`, `$LUMEN_MAIL_NODE_MODULES`) | all |
@@ -49,10 +73,10 @@ option. Commands that write accept `--dry-run`, which prints the plan and writes
 | Path | Content |
 |---|---|
 | `<roundcube>/skins/lumen/` | the installed skin; `lumen-build.stamp` lists every file's sha256 and what it was built from |
-| `<roundcube>/.lumen-mail/` | staging during a run (removed afterwards; leftovers of an interrupted run are removed by the next one) |
+| `<roundcube>/.lumen-mail/` | staging during a run, in `run-*` folders (removed afterwards; leftovers of an interrupted run are removed by the next one; anything else in it is left alone, and a link or a folder of another user is refused) |
 | `<state>/last-good/` | copy of the last build that passed verify; the fast restore copies it back |
 | `<state>/backups/<time>-<reason>/lumen/` | replaced or removed builds (`replaced-install`, `replaced-stale`, `replaced-broken`, `replaced-rollback`, `uninstall`) |
-| `<state>/sync-state.json` | back-off after a failed rebuild, memory deferral, hold, uninstalled marker |
+| `<state>/sync-state.json` | back-off after a failed rebuild, memory deferral (kind and start time only, so a repeated deferral writes nothing), hold, uninstalled marker |
 | `<state>/ROLLBACK.txt` | the undo commands of the last install, rollback or uninstall |
 | `<state>/lock` | `flock(2)` lock shared by every writing command |
 
@@ -61,17 +85,19 @@ option. Commands that write accept `--dry-run`, which prints the plan and writes
 | Code | Meaning |
 |---|---|
 | 0 | ok; `check`: everything current; `sync`: done or nothing to do |
-| 1 | error; `verify`: problems found; `sync`: the rebuild failed and the active build stays |
+| 1 | error; `verify`: problems found; `sync`: the rebuild failed and the active build stays, or webmail is down (the system skin is lumen and there is no usable `skins/lumen` and nothing to restore it from; logged as "webmail is down" at error level on every run) |
 | 2 | usage |
 | 3 | Elastic drift: the installed Elastic lacks a file, marker or variable Lumen relies on |
 | 4 | LESS compile error |
-| 5 | refused: `uninstall` while the system skin is (or may be) lumen; `install-runtime` over a folder that is not a runtime |
+| 5 | refused: `uninstall` while the system skin is (or may be) lumen; `install-runtime` over a folder that is not a runtime; as root, a Roundcube tree that belongs to root (without `--owner`), a linked `--roundcube`, `skins/` or state folder |
 | 6 | `check`: not installed (no `skins/lumen`, no last good copy, and the system skin is not lumen) |
 | 10 | `check`: sync needed (missing, damaged or stale build, missing last good copy, rebuild requested, or no build at all while the system skin is lumen) |
-| 75 | try again later: lock busy, Roundcube tree incomplete, too little memory, back-off after a failed rebuild; the unit counts it as success |
+| 75 | try again later: lock busy (logged at notice), Roundcube tree incomplete, too little memory, back-off after a failed rebuild; the unit counts it as success. Not while webmail is down: then `sync` exits 1 |
 
 ## Journal
 
 Under systemd (`$JOURNAL_STREAM` set) every line carries a syslog priority: restores and rebuilds
 at notice, problems at warning or error, everything else at info. The unit sets
-`LogLevelMax=notice`, so a run with nothing to do leaves no line in the journal.
+`LogLevelMax=notice`, so a run with nothing to do leaves no line in the journal. A deferred
+rebuild is logged at notice once, then at info, and at warning once it has waited 6 hours (and
+every 6 hours after that).

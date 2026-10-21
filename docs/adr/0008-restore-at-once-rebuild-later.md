@@ -47,8 +47,15 @@ with `StateDirectory=lumen-mail`, `ProtectSystem=strict`, `ProtectHome=tmpfs` an
 - No start rate limit on the service: when it is hit, systemd fails the path unit too.
 - Exit code 75 ("try again later") counts as success; failed rebuilds back off per input set.
 - `LogLevelMax=notice` drops systemd's own per-run info lines, so the 2-minute no-op is silent.
-- Before the compiler starts, sync requires 400 MB of `MemAvailable`; the unit has
-  `MemoryMax=300M` and `OOMScoreAdjust=1000` (the compile peaked at 114 MB RSS).
+- Before the compiler starts, sync requires 300 MB of `MemAvailable` (400 MB at first, which on
+  this host deferred rebuilds for hours); the unit has `MemoryMax=300M` and
+  `OOMScoreAdjust=1000` (the compile peaked at 106 to 115 MB RSS).
+- The fast restore falls back to the newest intact backup when the last good build is missing or
+  damaged. With lumen as the system skin and nothing to restore, webmail is down: sync then
+  builds at once without the back-off and with a 150 MB floor, and logs it at error level with
+  exit 1 on every run.
+- The service runs as the Roundcube owner, never as root; a manual command started as root drops
+  to that user ([command reference](../cli.md#running-as-root)).
 
 ## Consequences
 
