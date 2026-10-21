@@ -7,14 +7,18 @@ import react from "@vitejs/plugin-react";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
+import { paletteInputsDigest } from "../scripts/palette-inputs.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const version = readFileSync(new URL("../version.txt", import.meta.url), "utf8").trim();
+// "sources sha256:..." lets the generator refuse a bundle built from other sources than the
+// checkout it builds from (scripts/palette-inputs.mjs).
 const BANNER =
   `/*! lumen-mail ${version} command palette | MIT | https://github.com/luminare-dev/lumen-mail | ` +
-  "includes React and React DOM (MIT, Copyright (c) Meta Platforms, Inc. and affiliates) */\n";
+  "includes React and React DOM (MIT, Copyright (c) Meta Platforms, Inc. and affiliates) | " +
+  `sources ${paletteInputsDigest(root)} */\n`;
 
-// The licence banner is added after minification (the minifier drops output banners).
+// The banner is added after minification (the minifier drops output banners).
 const licenceBanner = {
   name: "lumen-licence-banner",
   generateBundle(_options, bundle) {

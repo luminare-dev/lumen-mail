@@ -5,7 +5,9 @@
 //     bundle must not start with "var <name> =");
 //   * no network or storage APIs in the bundle, React included (fetch, XMLHttpRequest,
 //     WebSocket, EventSource, sendBeacon, localStorage, sessionStorage, indexedDB, cookies);
-//   * the licence banner comes first;
+//   * the licence banner comes first and names the digest of the sources it was built from
+//     (scripts/palette-inputs.mjs), which must equal this checkout's when the default file is
+//     checked;
 //   * size: at most 73 KB after gzip, the number is printed. Measured 2026-10-21 with Vite 8.3.4
 //     (Oxc minifier): React 19.3.1 and React DOM alone, in a one-button app built the same way,
 //     are 67,439 bytes (65.9 KB) gzip; the palette adds about 6.2 KB (73,825 bytes, 72.1 KB in
@@ -19,6 +21,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
+import { paletteInputsDigest } from "./palette-inputs.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -51,6 +54,12 @@ try {
 
 const problems = FORBIDDEN.filter(([, re]) => re.test(code)).map(([name]) => `contains ${name}`);
 if (!code.startsWith("/*! lumen-mail ")) problems.push("the licence banner is missing");
+const banner = code.slice(0, code.indexOf("*/") + 2);
+const built = /\bsources (sha256:[0-9a-f]{64})\b/u.exec(banner)?.[1];
+if (!built) problems.push("the banner does not name the digest of its sources");
+else if (!positional[0] && built !== paletteInputsDigest(root)) {
+  problems.push(`built from other sources (${built}) than this checkout's (${paletteInputsDigest(root)})`);
+}
 if (/^\/\*![^*]*\*\/\s*(?:var|let|const)\s+[\w$]+\s*=/u.test(code)) problems.push("declares a global variable");
 
 const raw = Buffer.byteLength(code);

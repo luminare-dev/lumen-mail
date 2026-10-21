@@ -30,6 +30,18 @@ built bundle.
 then `install-runtime` again. Or use the `lumen/lumen-palette.js` of the release package of the
 same version: `--palette <file>`. A sync run keeps the active build until the bundle is back.
 
+## `error: the command palette bundle .../lumen-palette.js is out of date`
+
+**Cause:** the bundle in `palette/dist/` was built from other palette sources than the checkout
+has now, for example after a `git pull` that changed `palette/src/`, `palette/vite.config.js` or
+`package.json`. The bundle's banner names the digest of the sources it was built from
+(`sources sha256:...`); `build`, `install`, `install-runtime` and the release package compare it
+with the checkout, so a stale palette never reaches a server.
+
+**Fix:** `npm ci --ignore-scripts --no-audit --no-fund && npm run build:palette` in the checkout,
+then run the command again. A bundle given with `--palette <file>` (from a release package) and
+the copy inside an `install-runtime` prefix are taken as they are.
+
 ## Ctrl+K does nothing
 
 - The palette is not on the login page, on print and error pages, in frames and in the external

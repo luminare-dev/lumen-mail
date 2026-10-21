@@ -100,6 +100,12 @@ the skin's own labels the text in both localization files. `tests/test_palette_c
 fails until all of them agree, and the generator's drift check fails a build if the installed
 Roundcube lacks a core label.
 
+Freshness: the bundle's banner names the digest of everything it is built from (`palette/src/`,
+`palette/vite.config.js`, `package.json`; `scripts/palette-inputs.mjs`). `check-palette.mjs` and
+the generator recompute it from the checkout, so `build`, `install`, `install-runtime` and the
+release package stop with "out of date" until `npm run build:palette` has run after a change.
+`tests/test_palette_digest.py` keeps the Node and Python digests equal.
+
 Size: React 19 and React DOM alone are 65.9 KB gzip in this build setup; the palette adds about
 6 KB. `scripts/check-palette.mjs` holds the bundle under 73 KB gzip.
 
