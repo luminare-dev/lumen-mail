@@ -42,7 +42,7 @@ option. Commands that write accept `--dry-run`, which prints the plan and writes
 | `--json` | off | `check`, `status` |
 | `-q`, `-v` | | only warnings and errors; also debug output |
 
-`NODE_OPTIONS` defaults to `--max-old-space-size=320` for the compile unless it is set.
+`NODE_OPTIONS` defaults to `--max-old-space-size=256` for the compile unless it is set.
 
 ## Files
 

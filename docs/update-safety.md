@@ -100,8 +100,10 @@ someone runs `lumen-mail sync` or switches the Interface skin back to Elastic.
   list ignores names that start with a dot.
 - **No start rate limit** on the service: if systemd's start limit were hit, it would fail the
   path unit too, which then stops watching until someone restarts it.
-- **`OOMScoreAdjust=1000`, `MemoryMax=350M` and the 400 MB check**: the server is small and
-  ClamAV holds about 1 GB. If memory runs out anyway, the kernel kills the compile first.
+- **`OOMScoreAdjust=1000`, `MemoryMax=300M` and the 400 MB check**: the server is small and
+  ClamAV holds about 1 GB. The real compile against Roundcube 1.7.3's Elastic peaked at 114 MB
+  RSS (`/usr/bin/time`, V8 heap capped at 256 MB by `NODE_OPTIONS`), so 300M leaves room. If
+  memory runs out anyway, the kernel kills the compile first.
 - **Exit code 75 counts as success** (`SuccessExitStatus=75`): "try again later" (lock busy,
   update still running, low memory, back-off) is not a failure; the timer retries.
 

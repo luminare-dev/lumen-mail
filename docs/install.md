@@ -43,13 +43,15 @@ below as root.
    ```bash
    /opt/lumen-mail/bin/lumen-mail install --roundcube /home/keyhelp/www/roundcube --dry-run
    NODE_OPTIONS=--max-old-space-size=256 systemd-run --scope --quiet --collect \
-     -p MemoryMax=350M -p MemorySwapMax=0 nice -n 19 \
+     -p MemoryMax=300M -p MemorySwapMax=0 choom -n 1000 -- nice -n 19 \
      /opt/lumen-mail/bin/lumen-mail install --roundcube /home/keyhelp/www/roundcube
    ```
 
-   The `systemd-run` line caps memory and priority for the short compile on a busy host; plain
-   `/opt/lumen-mail/bin/lumen-mail install --roundcube ...` works too. The command prints the
-   commands that undo it and keeps them in `/var/lib/lumen-mail/ROLLBACK.txt`.
+   The `systemd-run` line caps memory and priority for the short compile on a busy host (it
+   peaked at 114 MB RSS and took under 2 s here), and `choom` makes the compile the first process
+   the kernel stops if memory runs out. Plain `/opt/lumen-mail/bin/lumen-mail install
+   --roundcube ...` works too. The command prints the commands that undo it and keeps them in
+   `/var/lib/lumen-mail/ROLLBACK.txt`.
 
 4. Install and start the units:
 

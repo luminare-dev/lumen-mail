@@ -49,7 +49,7 @@ SyslogIdentifier=lumen-mail
 LogLevelMax=notice
 
 # Resources: a small, busy host. If memory runs out anyway, the kernel kills this unit first.
-MemoryMax=350M
+MemoryMax=300M
 MemorySwapMax=0
 OOMScoreAdjust=1000
 Nice=19

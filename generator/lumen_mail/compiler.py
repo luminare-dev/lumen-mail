@@ -19,7 +19,7 @@ from .util import LumenError
 
 DEFAULT_TIMEOUT = 600
 # The compile runs on a small, busy host: cap the V8 heap unless the caller chose a limit.
-DEFAULT_NODE_OPTIONS = "--max-old-space-size=320"
+DEFAULT_NODE_OPTIONS = "--max-old-space-size=256"
 
 
 class CompileError(LumenError):

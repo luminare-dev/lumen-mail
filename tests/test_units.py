@@ -53,7 +53,7 @@ class UnitsTest(unittest.TestCase):
         self.assertNotIn("ReadWritePaths", svc)
         self.assertEqual(svc["PrivateNetwork"], ["yes"])
         self.assertEqual(svc["NoNewPrivileges"], ["yes"])
-        self.assertEqual(svc["MemoryMax"], ["350M"])
+        self.assertEqual(svc["MemoryMax"], ["300M"])
         self.assertEqual(svc["OOMScoreAdjust"], ["1000"])
         self.assertEqual(svc["Nice"], ["19"])
         self.assertEqual(svc["IOSchedulingClass"], ["idle"])

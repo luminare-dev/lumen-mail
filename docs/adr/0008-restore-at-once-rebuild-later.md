@@ -48,7 +48,7 @@ with `StateDirectory=lumen-mail`, `ProtectSystem=strict`, `ProtectHome=tmpfs` an
 - Exit code 75 ("try again later") counts as success; failed rebuilds back off per input set.
 - `LogLevelMax=notice` drops systemd's own per-run info lines, so the 2-minute no-op is silent.
 - Before the compiler starts, sync requires 400 MB of `MemAvailable`; the unit has
-  `MemoryMax=350M` and `OOMScoreAdjust=1000`.
+  `MemoryMax=300M` and `OOMScoreAdjust=1000` (the compile peaked at 114 MB RSS).
 
 ## Consequences
 
