@@ -73,7 +73,7 @@ class RuntimeTest(unittest.TestCase):
         self.assertEqual(self.install(), 0)
         manifest = json.loads((self.prefix / MANIFEST).read_text())
         self.assertEqual(manifest["lumen_version"], (ROOT / "version.txt").read_text().strip())
-        for rel in ("version.txt", "LICENSE", "NOTICE", "package.json", "src/less/lumen.less", "skin/meta.json",
+        for rel in ("version.txt", "LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md", "package.json", "src/less/lumen.less", "skin/meta.json",
                     "generator/lumen_mail/lifecycle.py", "generator/lumen_mail/compile.mjs",
                     "node_modules/less/package.json", "node_modules/clean-css/package.json"):
             self.assertTrue((self.prefix / rel).is_file(), rel)

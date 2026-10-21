@@ -28,8 +28,9 @@ sha256 of every file in this folder, so a rebuild is due whenever Roundcube chan
 - **Sora** typeface, Copyright 2019 The Sora Project Authors
   (<https://github.com/sora-xor/sora-font>), SIL Open Font License 1.1: `fonts/Sora-OFL.txt`.
   `fonts/Sora-Variable.woff` is the unchanged variable font in a WOFF container.
-- `lumen-palette.js`, when present, bundles **React** and **React DOM** (MIT licence); their
-  copyright and licence notices are kept at the top of the file.
+- `lumen-palette.js`, the command palette, bundles **React**, **React DOM** and **scheduler**
+  (MIT licence, Copyright (c) Meta Platforms, Inc. and affiliates): the file's banner names them,
+  and `THIRD_PARTY_NOTICES.md` in this folder has their licence text.
 
 ## Licences
 
@@ -38,7 +39,8 @@ sha256 of every file in this folder, so a rebuild is due whenever Roundcube chan
 | `styles/*.css` (compiled) | CC BY-SA 3.0, as an adaptation of Elastic |
 | `templates/`, `localization/`, `lumen.js`, `lumen-palette.js`, `watermark.html`, `meta.json` | MIT, Copyright (c) 2026 Paul Pasaurek |
 | `fonts/Sora-Variable.woff` | SIL Open Font License 1.1 |
-| `LICENSE`, `NOTICE` | the MIT licence text and the project's notice (brand files, Roundcube and Elastic, KeyHelp) |
+| `lumen-palette.js` (bundled React, React DOM, scheduler) | MIT, Copyright (c) Meta Platforms, Inc. and affiliates (`THIRD_PARTY_NOTICES.md`) |
+| `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES.md` | the MIT licence text, the project's notice (brand files, Roundcube and Elastic, KeyHelp) and the bundled third-party code's licences |
 | `images/`, `thumbnail.png` | Luminare brand files: not licensed (see the project's NOTICE) |
 
 The names "Luminare Development" and "Luminare" and the Luminare logo and mark are not licensed

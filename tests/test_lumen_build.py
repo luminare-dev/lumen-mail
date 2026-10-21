@@ -56,7 +56,7 @@ class BuildTest(FakeTreeCase):
                     "templates/includes/footer.html", "localization/en_US.inc", "localization/de_DE.inc",
                     "fonts/Sora-Variable.woff", "fonts/Sora-OFL.txt", "images/luminare-mark.svg",
                     "styles/styles.css", "styles/styles.min.css", "styles/embed.css", "styles/embed.min.css",
-                    "lumen-palette.js", STAMP_NAME):
+                    "lumen-palette.js", "LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md", STAMP_NAME):
             self.assertTrue((out / rel).is_file(), rel)
         self.assertFalse(list(out.rglob("*.less")), "no LESS source may stay in the skin")
         self.assertEqual(verify(out, Roundcube.at(self.rc), Sources.locate(ROOT)), [])

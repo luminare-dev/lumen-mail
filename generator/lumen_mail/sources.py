@@ -4,7 +4,7 @@ The same layout is used in a git checkout and in the runtime copy that install-r
 (for example /opt/lumen-mail), so the sync job never depends on the checkout:
 
     <root>/version.txt                 project version (release-please)
-    <root>/LICENSE, <root>/NOTICE      copied into every build
+    <root>/LICENSE, NOTICE, THIRD_PARTY_NOTICES.md   copied into every build
     <root>/src/less/                   our LESS: tokens, Elastic variable overrides, component layer
     <root>/skin/                       our static skin files (templates, images, fonts, ...)
     <root>/palette/dist/lumen-palette.js   the built command palette (required; npm run build:palette,
@@ -77,7 +77,7 @@ class Sources:
 
     def check(self) -> None:
         wanted = [self.less_dir / name for name in LESS_FILES] + [self.skin_dir / "meta.json"]
-        wanted += [self.root / name for name in ("LICENSE", "NOTICE")]
+        wanted += [self.root / name for name in ("LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md")]
         missing = [str(p) for p in wanted if not p.is_file()]
         if missing:
             raise LumenError(f"the lumen-mail sources at {self.root} are incomplete", [f"missing {m}" for m in missing])
@@ -93,8 +93,8 @@ class Sources:
 
     def digest(self) -> str:
         """sha256 over everything the build reads from us (detects a changed runtime copy)."""
-        patterns = ["version.txt", "LICENSE", "NOTICE", "src/less/*.less", "skin/**/*", "generator/lumen_mail/*.py",
-                    "generator/lumen_mail/compile.mjs"]
+        patterns = ["version.txt", "LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md", "src/less/*.less", "skin/**/*",
+                    "generator/lumen_mail/*.py", "generator/lumen_mail/compile.mjs"]
         digest = tree_digest(self.root, patterns)
         if self.palette.is_file():
             h = hashlib.sha256((digest + "\0").encode())

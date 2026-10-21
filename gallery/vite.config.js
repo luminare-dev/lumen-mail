@@ -65,6 +65,7 @@ function lumenGallery() {
       // The gallery bundles React (MIT) and the Sora font (OFL-1.1): the licences travel with it.
       cpSync(join(root, "LICENSE"), join(outDir, "LICENSE"));
       cpSync(join(root, "NOTICE"), join(outDir, "NOTICE"));
+      cpSync(join(root, "THIRD_PARTY_NOTICES.md"), join(outDir, "THIRD_PARTY_NOTICES.md"));
       cpSync(join(root, "skin", "fonts", "Sora-OFL.txt"), join(outDir, "Sora-OFL.txt"));
       for (const name of readdirSync(join(outDir, "assets"))) {
         if (name.endsWith(".js") && !readFileSync(join(outDir, "assets", name), "utf8").startsWith("/*! lumen-mail ")) {

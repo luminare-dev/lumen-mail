@@ -45,6 +45,7 @@ REQUIRED = (
     PALETTE_FILE,
     "LICENSE",
     "NOTICE",
+    "THIRD_PARTY_NOTICES.md",
     *CSS_OUTPUTS,
     STAMP_NAME,
 )

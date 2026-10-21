@@ -37,6 +37,13 @@ says so, and the installed skin's README.md credits Elastic's authors.
 Release packages that contain compiled CSS carry the same terms for those
 files.
 
+Third-party code
+The command palette (lumen-palette.js, built from palette/ and copied into
+every skin build and release package) and the gallery bundle React, React
+DOM and scheduler, Copyright (c) Meta Platforms, Inc. and affiliates, MIT
+licence. THIRD_PARTY_NOTICES.md has their licence text and travels with
+every build.
+
 Not affiliated with or endorsed by the Roundcube project. Roundcube is named
 only to describe what this project works with.
 

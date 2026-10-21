@@ -10,7 +10,7 @@ so Sources finds everything without options):
     <prefix>/skin/                     our static skin files
     <prefix>/palette/dist/lumen-palette.js   the prebuilt command palette (required): sync never runs Vite
     <prefix>/node_modules/             less, clean-css and their dependencies only
-    <prefix>/version.txt, LICENSE, NOTICE, package.json
+    <prefix>/version.txt, LICENSE, NOTICE, THIRD_PARTY_NOTICES.md, package.json
     <prefix>/RUNTIME.json              version, time and sha256 of every file
 
 The new copy is assembled next to the prefix and swapped in with one atomic rename; the old copy
@@ -118,7 +118,7 @@ def runtime_files(sources: Sources) -> list[RuntimeFile]:
     sources.require_palette()
     root = sources.root
     files: list[RuntimeFile] = []
-    for name in ("version.txt", "LICENSE", "NOTICE", "package.json"):
+    for name in ("version.txt", "LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md", "package.json"):
         files.append(RuntimeFile(root / name, name))
     for name in LESS_FILES:
         files.append(RuntimeFile(sources.less_dir / name, f"src/less/{name}"))

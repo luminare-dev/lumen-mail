@@ -44,8 +44,8 @@ class PackageTest(FakeTreeCase):
             names = tar.getnames()
             members = tar.getmembers()
         self.assertTrue(all(n == "lumen" or n.startswith("lumen/") for n in names))
-        for rel in ("meta.json", "LICENSE", "NOTICE", "README.md", "lumen-build.stamp", "styles/styles.min.css",
-                    "templates/includes/footer.html", "fonts/Sora-OFL.txt"):
+        for rel in ("meta.json", "LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md", "lumen-palette.js", "README.md",
+                    "lumen-build.stamp", "styles/styles.min.css", "templates/includes/footer.html", "fonts/Sora-OFL.txt"):
             self.assertIn(f"lumen/{rel}", names)
         self.assertTrue(all(m.uid == 0 and m.gid == 0 and m.mtime == 1792540800 for m in members))
         self.assertTrue(all(m.mode == (0o755 if m.isdir() else 0o644) for m in members))

@@ -54,9 +54,9 @@ ENTRIES = {
 }
 CSS_OUTPUTS = ("styles/styles.css", "styles/styles.min.css", "styles/embed.css", "styles/embed.min.css")
 PALETTE_FILE = "lumen-palette.js"
-# Copied from the source root into every build (and so into every release package). static.php
-# does not serve files without an extension, so they are not reachable over the web.
-LEGAL_FILES = ("LICENSE", "NOTICE")
+# Copied from the source root into every build (and so into every release package).
+# THIRD_PARTY_NOTICES.md carries React's MIT licence for the bundled command palette.
+LEGAL_FILES = ("LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md")
 BANNER = """/*! Lumen {lumen_version} for Roundcube Webmail {roundcube_version}: {name}
  * Compiled on this server from two sources:
  *  - the Roundcube "Elastic" skin by Aleksander Machniak and The Roundcube Dev Team,
