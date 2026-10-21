@@ -146,13 +146,15 @@ def render(rows: list[dict]) -> str:
         out.append(f"| `{p['fg']}` | `{p['bg']}` | {p['use']} | {p['min']}:1 | {cells[0]} | {cells[1]} |")
     lowest = {mode: min((row[mode][0] for row in rows if row.get(mode)), default=0) for mode in MODES}
     out += ["", f"{len(rows)} pairs; lowest ratio {lowest['light']:.2f}:1 in light mode and "
-                f"{lowest['dark']:.2f}:1 in dark mode.", ""]
+                f"{lowest['dark']:.2f}:1 in dark mode.", "",
+            "The command palette (palette/src/palette.css) draws with the same tokens in its shadow root;",
+            "its pairs (dialog text, hints, matched characters, the active row, the focus ring) are rows above.",
+            ""]
     out += [
         "## Not covered by this table",
         "",
         "- Colours Elastic derives itself from our variables (for example the faded colour of deleted",
         "  messages) keep Elastic's formulas; they are not text Lumen sets.",
-        "- The command palette has its own styles in a shadow root; its pairs use the same tokens.",
         "- Message bodies keep the sender's colours.",
         "",
     ]

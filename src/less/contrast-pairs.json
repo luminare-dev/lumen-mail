@@ -58,6 +58,7 @@
     {"fg": "focus", "bg": "surface-sunken", "min": 3.0, "use": "focus ring in the folder column, search field border", "where": "lumen.less .searchbar:focus-within"},
     {"fg": "focus", "bg": "primary-tint", "min": 3.0, "use": "focus ring on a selected row", "where": "lumen.less"},
     {"fg": "primary", "bg": "surface", "min": 3.0, "use": "unread dot, checked controls, active tab underline, quota bar", "where": "@color-list-unread-status, @color-checkbox, .nav-tabs"},
-    {"fg": "scrollbar", "bg": "bg", "min": 3.0, "use": "scrollbar thumb", "where": "@color-scrollbar-thumb, @color-dark-scrollbar-thumb"}
+    {"fg": "scrollbar", "bg": "bg", "min": 3.0, "use": "scrollbar thumb", "where": "@color-scrollbar-thumb, @color-dark-scrollbar-thumb"},
+    {"fg": "link", "bg": "surface-raised", "min": 4.5, "use": "matched characters in the command palette", "where": "palette/src/palette.css mark"}
   ]
 }

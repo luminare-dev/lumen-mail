@@ -66,12 +66,15 @@ Elastic's `html.dark-mode`. The task menu and the login hero are Night in both m
 | `focus` | `primary-tint` | focus ring on a selected row | 3.0:1 | 6.51:1 pass (`#1F47C4` on `#E9EDF9`) | 10.04:1 pass (`#06F2C4` on `#142B3E`) |
 | `primary` | `surface` | unread dot, checked controls, active tab underline, quota bar | 3.0:1 | 7.62:1 pass (`#1F47C4` on `#FFFFFF`) | 11.32:1 pass (`#5BDFFF` on `#10182B`) |
 | `scrollbar` | `bg` | scrollbar thumb | 3.0:1 | 3.43:1 pass (`#79859C` on `#F3F6FB`) | 3.48:1 pass (`#5E6B84` on `#0A1224`) |
+| `link` | `surface-raised` | matched characters in the command palette | 4.5:1 | 7.62:1 pass (`#1F47C4` on `#FFFFFF`) | 10.89:1 pass (`#5BDFFF` on `#131C2F`) |
 
-58 pairs; lowest ratio 3.43:1 in light mode and 3.17:1 in dark mode.
+59 pairs; lowest ratio 3.43:1 in light mode and 3.17:1 in dark mode.
+
+The command palette (palette/src/palette.css) draws with the same tokens in its shadow root;
+its pairs (dialog text, hints, matched characters, the active row, the focus ring) are rows above.
 
 ## Not covered by this table
 
 - Colours Elastic derives itself from our variables (for example the faded colour of deleted
   messages) keep Elastic's formulas; they are not text Lumen sets.
-- The command palette has its own styles in a shadow root; its pairs use the same tokens.
 - Message bodies keep the sender's colours.
