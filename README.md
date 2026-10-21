@@ -122,8 +122,9 @@ Fixes go into the latest minor release only. See the
 
 | What | Value | How it was measured |
 |---|---|---|
-| Generator and contrast tests | 38 tests pass (33 generator, 5 contrast) | `python3 -m unittest discover -s tests` with the stand-in compiler, 2026-10-21 |
+| Generator and contrast tests | 39 tests pass (34 generator, 5 contrast) | `python3 -m unittest discover -s tests` with the stand-in compiler, 2026-10-21 |
 | Drift check | passes against Roundcube 1.7.3's Elastic: 161 Elastic variables set, 3 read, every file and marker present | `lumen_mail.elastic.check_drift`, 2026-10-21 |
+| Pipeline against the installed Elastic | build and verify pass with the stand-in compiler (url resolution, cache-busters, served types, stamp) | `build --compiler tests/stub_compiler.py` against Roundcube 1.7.3, 2026-10-21 |
 | Contrast | 58 pairs pass WCAG 2.2 AA in light and dark mode; lowest 3.43:1 (light) and 3.17:1 (dark), both UI parts with a 3:1 minimum | `python3 scripts/contrast.py`, 2026-10-21 |
 | Font | Sora variable font 60,684 bytes as WOFF (TTF 111,400) | `scripts/build_font.py`, 2026-10-21 |
 

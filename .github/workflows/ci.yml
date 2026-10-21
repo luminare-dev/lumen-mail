@@ -1,5 +1,6 @@
-# Caller: lint, tests and the full-history secret scan on every pull request and push to main.
-# Required checks for the main ruleset: "ci / lint-test" and "secrets / gitleaks".
+# Caller: lint, tests and the full-history secret scan on every pull request and push to main,
+# plus the skin job: the real LESS compile against the Elastic skin of a pinned Roundcube release.
+# Required checks for the main ruleset: "ci / lint-test", "skin" and "secrets / gitleaks".
 name: ci
 
 on:
@@ -26,3 +27,43 @@ jobs:
     uses: ./.github/workflows/reusable-gitleaks.yml
     permissions:
       contents: read
+
+  skin:
+    name: skin
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      # Official release archive (github.com/roundcube/roundcubemail), sha256 read on 2026-10-21.
+      ROUNDCUBE_VERSION: 1.7.3
+      ROUNDCUBE_SHA256: 08916e7902c9afae7e57a4303de09f0110159823563b7b73d2bd18607aabf276
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Install the locked compiler (no install scripts)
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Fetch Roundcube (sha256-pinned)
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/roundcube.tar.gz"
+          curl -fsSL -o "$archive" \
+            "https://github.com/roundcube/roundcubemail/releases/download/${ROUNDCUBE_VERSION}/roundcubemail-${ROUNDCUBE_VERSION}.tar.gz"
+          echo "${ROUNDCUBE_SHA256}  ${archive}" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/roundcube"
+          tar -xzf "$archive" -C "$RUNNER_TEMP/roundcube" --strip-components=1
+
+      - name: Build and verify the skin against the release's Elastic
+        env:
+          LUMEN_MAIL_TEST_ROUNDCUBE: ${{ runner.temp }}/roundcube
+          LUMEN_MAIL_TEST_REQUIRE: "1"
+        run: python3 -m unittest discover -s tests -p "test_lumen_integration.py" -v
