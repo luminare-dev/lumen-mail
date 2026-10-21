@@ -22,8 +22,11 @@ always wins over a file of the same name in `skins/lumen`. The same holds for th
 ## Decision
 
 Option 3. `lumen.js` acts only when the page shows Elastic's default logo, so a configured
-`skin_logo` always wins, and it fills `rcmail.env.additional_logos` only for the types the admin did
-not set. The favicon comes from the `favicon` key in Lumen's `meta.json` config, with a file name
+`skin_logo` always wins, and it fills `rcmail.env.additional_logos` only when the admin set no
+logo variant at all: `ui.js` prefers `small-dark`, then `small`, then `dark`, so a filled variant
+next to one the admin set would outrank the admin's choice. The same script keeps the browser's
+`theme-color` in step with `html.dark-mode` (Elastic never updates it) and uses Night on the login
+page. The favicon comes from the `favicon` key in Lumen's `meta.json` config, with a file name
 that Elastic does not have. The stylesheet works because Elastic ships only `styles.min.css`, so
 Lumen's `styles/styles.css` is the first match; the drift check fails if Elastic ever adds a
 `styles.css`.
