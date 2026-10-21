@@ -49,6 +49,9 @@ jobs:
       - name: Install the locked compiler (no install scripts)
         run: npm ci --ignore-scripts --no-audit --no-fund
 
+      - name: Logo script tests (node --test, no dependencies)
+        run: node --test "tests/js/*.test.mjs"
+
       # The official release archive (github.com/roundcube/roundcubemail); version and sha256 are
       # pinned once, in scripts/package.py (ROUNDCUBE_VERSION, ROUNDCUBE_SHA256).
       - name: Fetch Roundcube (sha256-pinned)
