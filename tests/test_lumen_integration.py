@@ -96,9 +96,23 @@ class RealCompileTest(unittest.TestCase):
         self.assertTrue(any(u.value.startswith("../../elastic/fonts/fa-solid-900.woff2?v=") for u in urls))
 
     def test_sora_replaces_roboto(self):
-        families = set(re.findall(r"font-family:([^;}]+)", self.min_css))
-        self.assertTrue(any(f.startswith(("Sora", '"Sora"')) for f in families), families)
-        self.assertFalse([f for f in families if f.startswith("Roboto")], "a rule still uses Roboto")
+        # clean-css keeps Elastic's "font-family: Roboto, sans-serif" in front of ours (the Sora
+        # stack has the vendor-like -apple-system), so check what each rule finally applies:
+        # the last !important declaration, else the last one.
+        effective = {}
+        for selector, body in re.findall(r"([^{}]+)\{([^{}]*)\}", self.min_css):
+            if selector.strip().startswith("@font-face"):
+                continue
+            decls = re.findall(r"font-family:([^;}]+)", body)
+            if not decls:
+                continue
+            important = [d for d in decls if d.rstrip().endswith("!important")]
+            effective[selector.strip()] = (important or decls)[-1]
+        self.assertTrue(effective)
+        roboto = {s: f for s, f in effective.items() if f.startswith(("Roboto", "'Roboto'", '"Roboto"'))}
+        self.assertEqual(roboto, {}, "rules whose effective font is Roboto")
+        body = [f for s, f in effective.items() if "body" in s.split(",")]
+        self.assertTrue(body and body[0].startswith(("Sora", '"Sora"')), body)
 
     def test_tokens_reach_the_css(self):
         css = self.min_css.lower()

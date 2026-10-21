@@ -218,8 +218,10 @@
 // ---------------------------------------------------------------------------------------------
 // Typography: Elastic calls this mixin for body, form controls, popovers and the editor. LESS
 // applies every matching mixin, so this definition adds a second font-family after Elastic's
-// Roboto one; the later declaration wins and the minifier drops the first. Roboto is then
-// referenced by no rule, so browsers never download it.
+// Roboto one in the same rule, and the later declaration wins. clean-css keeps the first one as a
+// fallback because the stack contains the vendor-like "-apple-system" (its sameVendorPrefixes
+// rule), which costs a few bytes and changes nothing: no rule's effective family is Roboto, so
+// browsers only reach Elastic's Roboto faces as a late fallback after Sora and system-ui.
 // ---------------------------------------------------------------------------------------------
 .font-family() {
     font-family: @lm-font;
