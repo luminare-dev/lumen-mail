@@ -41,7 +41,9 @@ icon by Lumen's stylesheet.
   page.
 - Good: the visible trigger makes the palette usable on phones, where there is no Ctrl+K.
 - Bad: React and React DOM are 65.9 KB gzip of the 72.1 KB bundle, over the 70 KB first aimed
-  for. `scripts/check-palette.mjs` holds the bundle under 73 KB; Preact would be the way to go
-  far below, if the owner prefers size over React.
+  for. Trimming the palette cannot close the gap: the same bundle with its whole stylesheet
+  removed is still 72,430 bytes (70.7 KB) gzip, and dropping the token fallbacks saves 190 bytes
+  (measured 2026-10-21 on the built file). `scripts/check-palette.mjs` holds the bundle under
+  73 KB; Preact would be the way to go far below, if the owner prefers size over React.
 - Bad: building the palette needs npm's development packages once per lumen-mail version (or
   the bundle from a release package); the server's compile still needs only less and clean-css.
