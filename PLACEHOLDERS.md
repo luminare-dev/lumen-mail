@@ -24,7 +24,7 @@ template is filled; CI fails if one comes back. The values used:
 
 | Value | Where | Status |
 |---|---|---|
-| `ci / lint-test`, `skin`, `secrets / gitleaks`, `pr / pr-title`, `DCO` | repository ruleset (required checks) | set when the repository is created (PUBLISHING.md, A7) |
+| `ci / lint-test`, `node`, `package`, `secrets / gitleaks`, `pr / pr-title`, `DCO` | repository ruleset (required checks) | set when the repository is created (PUBLISHING.md, A7) |
 | `luminare-dev` | README badges and links | the organization |
 | `docs/brand/` | header SVGs and social preview | generated for `lumen-mail` by brand-repos (studio variant) |
 | `release-please-config.json` -> `initial-version` | first release | `0.1.0` |

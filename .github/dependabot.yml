@@ -1,9 +1,10 @@
 # Dependabot version updates (https://docs.github.com/en/code-security/dependabot).
 # Keeps the SHA pins of the workflow actions and their "# vX.Y.Z" comments current, the
 # hash-pinned Python tools in requirements-dev.txt and the pinned npm packages (the LESS compiler
-# and minifier the skin is built with). A 7-day cooldown lets a bad release surface before it
-# lands here. The pinned gitleaks and actionlint downloads (version + sha256 inputs in the
-# reusable workflows) and the Roundcube release in ci.yml (version + sha256) are not seen by
+# and minifier the skin is built with; the React and Vite toolchain of the palette and gallery).
+# A 7-day cooldown lets a bad release surface before it lands here. The pinned gitleaks and
+# actionlint downloads (version + sha256 inputs in the reusable workflows) and the Roundcube
+# release in scripts/package.py (version + sha256) are not seen by
 # Dependabot; bump them by hand (PUBLISHING.md, monthly).
 #
 # Pull request titles must pass the pr-title check (Conventional Commits): the prefix carries the
@@ -54,3 +55,6 @@ updates:
     groups:
       css-compiler:
         patterns: ["less", "clean-css"]
+      palette-toolchain:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom", "vite", "@vitejs/*", "vitest",
+                   "jsdom", "@testing-library/*", "typescript"]

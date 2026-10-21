@@ -20,7 +20,7 @@
     "build:gallery": "vite build --config gallery/vite.config.js",
     "gallery": "vite --config gallery/vite.config.js",
     "test": "vitest run --config palette/vitest.config.js",
-    "test:logo": "node --test tests/js/lumen-logo.test.mjs",
+    "test:js": "node --test \"tests/js/*.test.mjs\"",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
