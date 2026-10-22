@@ -189,8 +189,19 @@ html.touch .btn:focus-visible {
     }
 }
 
+// Labels on wide screens. The rail is a toolbar too (#taskmenu.menu.toolbar), and Elastic caps
+// every toolbar link at 6rem (84px): without the reset its links stayed 84px wide in the 96px
+// rail, off centre, and German labels ("Einstellungen", "Dunkler Modus") were cut off. Each link
+// takes the rail's full width (@layout-menu-width), and the label the link's full width: Elastic's
+// 0.1em of padding on each side is dropped (a centred label stays where it was).
+// docs/adr/0011-long-labels-get-room.md
 @media screen and (min-width: (@screen-width-medium + 1px)) {
+    #taskmenu a {
+        max-width: none;
+    }
+
     #taskmenu span.inner {
+        padding-inline: 0;
         font-size: @lm-rail-label;
         letter-spacing: 0;
     }
@@ -232,6 +243,101 @@ html.layout-phone #layout-menu .popover-header {
 #layout > div > .header a.button,
 .menu.toolbar .dropbutton {
     border-radius: var(--lm-radius-m);
+}
+
+// Elastic caps toolbar buttons at 6rem (84px) and cuts longer labels with an ellipsis; in Sora
+// that cut "Allen antworten", "Weiterleiten", "Schnellantworten" and "Responses". A header
+// button is as wide as its label up to @lm-toolbar-button-max; short labels keep their width.
+.header .menu.toolbar a {
+    max-width: @lm-toolbar-button-max;
+}
+
+// The content column's toolbar (message, compose, contacts) shares its header's room: a button
+// starts at Elastic's 6rem (or its label's width, if shorter), and long labels grow from there
+// to their full width as far as the header allows. A narrow header (800px screens) then cuts
+// the longest label instead of pushing the last buttons out of view. Elastic lays the buttons
+// out as inline blocks; as flex items they keep the same places whenever everything fits.
+// Inline-size containment keeps the labels from widening the content column, whose minimum
+// width would otherwise grow to the sum of theirs.
+#layout-content > .header > .menu.toolbar:not(.popupmenu) {
+    display: flex;
+    flex: 1 1 0;
+    justify-content: center;
+    min-width: 0;
+    contain: inline-size;
+
+    & > li:not(.spacer) {
+        flex: 1 1 6rem;
+        min-width: 0;
+        max-width: max-content;
+    }
+
+    & > li.spacer {
+        flex: none;
+    }
+
+    a {
+        max-width: ~"min(100%, @{lm-toolbar-button-max})";
+    }
+
+    .dropbutton {
+        display: flex;
+        max-width: 100%;
+
+        & > a:first-child {
+            flex: 0 1 auto;
+            min-width: 0;
+        }
+
+        & > a.dropdown {
+            flex: none;
+        }
+    }
+}
+
+// Between 769 and 959px the content column is narrow (its header 470 to 620px wide): the
+// toolbar's buttons get less side padding and the spacer gives way, so that long languages fit
+// without cutting a label. From 960px on the toolbar is laid out as in Elastic.
+@media screen and (min-width: (@screen-width-small + 1px)) and (max-width: 959px) {
+    #layout-content > .header > .menu.toolbar:not(.popupmenu) {
+        a {
+            padding-right: .25rem;
+            padding-left: .25rem;
+        }
+
+        .dropbutton > a:first-child {
+            padding-right: 0;
+        }
+
+        & > li.spacer {
+            flex: 0 1 1em;
+        }
+    }
+}
+
+// Column header titles (the folder above a narrow list, the account above the folders): a long
+// title ("Boîte de réception") takes a second line instead of an ellipsis. The line height is a
+// whole pixel and the title is centred in the header, so a one-line title stays exactly where
+// Elastic puts it.
+#layout > div > .header > .header-title {
+    align-self: center;
+    line-height: floor(1.3 * @page-font-size); // 18px
+    white-space: normal;
+    text-wrap: balance;
+}
+
+// Phone footers (Previous, Reply or Save, Next): the outer buttons share the footer's width, each
+// up to Elastic's 6rem, and a longer label ("Vorherige(r)") makes its button as wide as the label;
+// the middle button is as wide as its label ("Enregistrer"), up to @lm-toolbar-button-max.
+// Labels that fit keep Elastic's sizes.
+.menu.footer {
+    & > a {
+        min-width: max-content;
+    }
+
+    .buttons a {
+        max-width: @lm-toolbar-button-max;
+    }
 }
 
 .menu.toolbar .dropbutton a.dropdown {
@@ -298,6 +404,43 @@ html.dark-mode .searchbar:focus-within {
     }
 }
 
+// Long entries take a second line instead of an ellipsis: with Lumen's padding and Sora, German
+// address book names ("Persönliches Adressbuch", "Vertrauenswürdige Absender") were cut. The
+// icon becomes a flex item, so a second line starts under the text, not under the icon. A
+// one-line row keeps Elastic's height and text position: line box plus padding add up to
+// @listing-line-height, in whole pixels and with the same odd/even split of the leading, so the
+// text lands on the same pixel row.
+.lm-odd-line(@lm-row, @lm-text) {
+    @lm-line: (floor(1.4 * @lm-text / 2) * 2 + 1);   // an odd whole pixel close to 1.4em
+    line-height: @lm-line;
+    padding-block: ((@lm-row - @lm-line) / 2);
+}
+
+#mailboxlist,
+#directorylist,
+#settings-menu {
+    li > a {
+        display: flex;
+        align-items: flex-start;
+        white-space: normal;
+        text-wrap: balance;
+        overflow-wrap: anywhere;
+        .lm-odd-line(@listing-line-height, @page-font-size);     // 19px + 2 x 8px = 35px
+
+        html.touch & {
+            .lm-odd-line(@listing-touch-line-height, (1.2 * @page-font-size)); // 23px + 2 x 12px
+        }
+
+        // Elastic's gap after the icon is a physical margin-right; as a logical margin it is the
+        // same on left-to-right pages and on the correct side on right-to-left ones.
+        &::before {
+            flex: none;
+            height: auto;
+            margin-inline: 0 .5rem;
+        }
+    }
+}
+
 html:not(.touch) #layout-sidebar ul.listing li:not(.selected) > a:hover {
     background-color: var(--lm-surface-hover);
 }
@@ -323,6 +466,15 @@ html:not(.touch) #layout-list table.listing tbody tr:not(.selected):hover td {
 
 .listing-info {
     font-weight: 500;
+}
+
+// The list footer's count ("Nachrichten 1 bis 14 von 14"): Elastic keeps it on one line and cuts
+// it in a narrow list. It may take a second line instead; two lines fit in the footer. The line
+// height is a whole pixel, so a one-line count stays exactly where Elastic puts it.
+.menu.pagenav .pagenav-text {
+    white-space: normal;
+    line-height: floor(1.1 * @page-font-size); // 15px for the 11.2px text
+    text-wrap: balance;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -386,6 +538,31 @@ html.dark-mode .custom-select:focus {
             border-end-start-radius: (@lm-radius-l - 1px);
             border-end-end-radius: (@lm-radius-l - 1px);
         }
+    }
+}
+
+// Bootstrap caps popovers at 276px; with the larger touch font Elastic's menus cut long entries
+// ("Erneut senden (falls unzustellbar)"). A menu is as wide as its longest entry, up to
+// @lm-popover-max.
+@media screen and (min-width: (@screen-width-xs + 1px)) {
+    .popover {
+        max-width: @lm-popover-max;
+    }
+}
+
+// Up to 768px Elastic shows menus as a side panel of fixed width (272px) with the 16px touch
+// font. There a long entry ("Odpowiedz wszystkim", "Opciones y ficheros adjuntos") takes a
+// second line beside its icon instead of an ellipsis; a one-line entry keeps Elastic's height
+// and text position (see .lm-odd-line). The arrow of a split button keeps Elastic's layout.
+html.layout-small,
+html.layout-phone {
+    .popover .listing li a:not(.dropdown) {
+        display: flex;
+        align-items: flex-start;
+        white-space: normal;
+        text-wrap: balance;
+        overflow-wrap: anywhere;
+        .lm-odd-line(@layout-touch-menu-record-height, @layout-touch-menu-record-font-size); // 23px + 2 x 12px
     }
 }
 

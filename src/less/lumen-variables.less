@@ -39,8 +39,10 @@
 @color-layout-mobile-header-background: @lm-light-surface;
 @color-layout-mobile-footer-background: @lm-light-surface;
 
-// Wider task menu: Sora is wider than Roboto, and the German labels ("Einstellungen",
-// "Dunkler Modus") are truncated at 78px (measured with the font's advance widths).
+// Wider task menu: Sora is wider than Roboto, and at Elastic's 78px German labels are cut
+// ("Dunkler Modus" is 91px at 12px, "Einstellungen" 82px, measured in Chromium). lumen.less lets
+// the rail's links take this full width: Elastic caps every toolbar link at 6rem (84px), the
+// rail's too (docs/adr/0011-long-labels-get-room.md).
 @layout-menu-width:             @lm-rail-width;
 
 // ---------------------------------------------------------------------------------------------
