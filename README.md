@@ -35,12 +35,21 @@ with the exact name of what changed if an update moved something.
 
 ## Screenshots
 
-<!-- Screenshot slots, filled at the first release (docs/screenshots/, example data only):
-     login page (light), mail view (dark), the command palette (light), settings at 360 px (dark).
-     The gallery's skin previews (docs/development.md) render the same views locally. -->
+Roundcube 1.7.3 with Lumen 0.1.0, taken in headless Chromium (1280 x 800 and 360 x 740 pixels)
+from a scratch copy of Roundcube that shows invented example mail only: no real mailbox, person or
+address. How they are made, and how to make them again: [docs/development.md](docs/development.md#screenshots).
 
-Screenshots follow with the first release; until then the [gallery](#gallery) renders the skin's
-mail, settings and login views locally.
+| Login page (light) | Mail view (dark) |
+|---|---|
+| ![Login page in the Lumen skin, light mode: the Luminare logo above the user name and password form on the dark Night background](docs/screenshots/lumen-login.png) | ![Mail view in dark mode: task rail, folder list with unread counts, message list and an open plain-text message with a PDF attachment](docs/screenshots/lumen-mail-dark.png) |
+| The login page in light mode (white card; the Night background is the same in both modes); its product name is example data from the test configuration. | Inbox, message list and an open text message; all example data. |
+
+| Command palette (light) | Settings at 360 px (dark) |
+|---|---|
+| ![Command palette open over the mail view in light mode: the query "se" matches the Sent folder, the Search action, Settings and more, with the matched letters highlighted](docs/screenshots/lumen-command-palette.png) | ![Preferences at phone width in dark mode: date format, pretty dates, refresh interval and the skin chooser with Lumen selected below Elastic](docs/screenshots/lumen-settings-phone-dark.png) |
+| Ctrl+K over the mail view: "se" finds folders, actions and settings pages; example data. | User Interface preferences on a phone, Lumen selected as the skin; example data. |
+
+The [gallery](#gallery) shows the design system and, with a built skin, preview pages locally.
 
 ## Features
 

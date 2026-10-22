@@ -7,8 +7,9 @@ LICENSE file). That licence covers the code only.
 The names "Luminare Development" and "Luminare", the Luminare logo and mark,
 the name and logo of this project, the README header images, the social
 preview image and all files in docs/brand/ and skin/images/ (the logo files
-the skin displays), as well as skin/thumbnail.png (the skin preview image),
-are not licensed under MIT or under any other licence in this repository.
+the skin displays), as well as skin/thumbnail.png (the skin preview image)
+and the screenshots in docs/screenshots/, are not licensed under MIT or
+under any other licence in this repository.
 In an installed skin and in release packages, those skin files are images/
 and thumbnail.png.
 No permission is granted to use them, except as required for reasonable and
@@ -39,6 +40,12 @@ Elastic and are licensed under CC BY-SA 3.0; each one carries a banner that
 says so, and the installed skin's README.md credits Elastic's authors.
 Release packages that contain compiled CSS carry the same terms for those
 files.
+
+The screenshots in docs/screenshots/ show Roundcube Webmail running the
+Lumen skin, with invented example data only. The parts of Roundcube and of
+Elastic they show (the interface, its layout and icons, as compiled into
+Lumen) keep their own licences above; the screenshots are not a Roundcube
+file and give no permission to use the Luminare logo they show.
 
 Third-party code
 The command palette (lumen-palette.js, built from palette/ and copied into
