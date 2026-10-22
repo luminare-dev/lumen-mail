@@ -140,6 +140,7 @@ The decisions behind this project are recorded as short ADRs in [docs/adr/](docs
 - [ADR 0008: Restore at once, rebuild later](docs/adr/0008-restore-at-once-rebuild-later.md)
 - [ADR 0009: A release package built against a pinned Roundcube](docs/adr/0009-a-release-package-built-against-a-pinned-roundcube.md)
 - [ADR 0010: A command palette as a skin asset](docs/adr/0010-a-command-palette-as-a-skin-asset.md)
+- [ADR 0011: Long labels get room instead of an ellipsis](docs/adr/0011-long-labels-get-room.md)
 
 What Lumen changes in Elastic, and why, is listed in
 [docs/elastic-inventory.md](docs/elastic-inventory.md); every text and UI colour pair is in
