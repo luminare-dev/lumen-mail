@@ -145,3 +145,48 @@ release-please keeps a release pull request open; merging it tags the release, r
 builds and tests the palette, builds the release package against the pinned Roundcube release
 (`scripts/package.py`) and attaches it with `SHA256SUMS` and a provenance attestation. The
 Roundcube version and its sha256 are pinned in `scripts/package.py`; bump both together.
+
+## Label fit
+
+Long labels must not end in an ellipsis: in German, Elastic itself cuts "Einstellungen",
+"Dunkler Modus", "Allen antworten" and "Schnellantworten", and Sora is wider than Elastic's
+Roboto ([ADR 0011](adr/0011-long-labels-get-room.md)). `scripts/screenshots/label-fit.mjs`
+checks it in a test copy of Roundcube with the example-data plugin (the same setup as the README
+screenshots, see "Screenshots"; it needs no mail server):
+
+- it logs in once per skin (Lumen and Elastic, chosen in the preferences like a user would) and
+  language, with the browser's language set, so Roundcube picks the language as it does for a new
+  user;
+- at 1280 x 800 (desktop), 1100 x 800 (Elastic's "normal" layout with labels), 1024 x 768 and
+  800 x 1280 (Elastic's touch layout, the toolbar still in the header) and 360 x 740 (phone,
+  with touch emulation) it opens the mail list, the folder menu, a message with its More, Mark,
+  Reply all and Forward menus (on a phone the task menu, the folder list and the toolbar menus
+  instead), compose, contacts and the settings pages Preferences, Folders, Identities and
+  Responses;
+- on each page, and in every frame of it, it measures each label in the task rail, the toolbars,
+  the column headers and footers, the sidebar lists and the open menus: a label counts as cut
+  when its text, or the padding around it, reaches past the edge of a box that hides overflow (or,
+  with `text-overflow: ellipsis`, past the box's content edge, where the ellipsis starts), when
+  one of its lines is hidden, or when a rail or toolbar button lies wholly outside its bar.
+
+It prints a table per language and size with the labels each skin cuts, and exits with 1 if
+Lumen cuts any label in German (`de_DE`), or in another language a label that Elastic shows in
+full at the same size (each failure names the views); with 3 if the run itself fails (a page
+error, a failed request, a failed login). The default languages are `en_US`, `de_DE`,
+`fr_FR`, `es_ES`, `it_IT`, `nl_NL`, `pl_PL`, `ru_RU`, `pt_BR` and `ar` (right to left; Roundcube
+does not set `dir="rtl"` for Elastic, so the page stays left to right with Arabic labels).
+
+```bash
+# test copy with Lumen and plugins/lumen_screenshots, served by php -S (see "Screenshots")
+PLAYWRIGHT_CORE=/tmp/lumen-browser/node_modules/playwright-core/index.mjs \
+  PLAYWRIGHT_BROWSERS_PATH=/tmp/lumen-browser/ms-playwright \
+  node scripts/screenshots/label-fit.mjs http://127.0.0.1:8080
+```
+
+`LUMEN_FIT_LOCALES=de_DE,fr_FR` and `LUMEN_FIT_SIZES=desktop,phone` (of `desktop`, `normal`,
+`touch`, `tablet`, `phone`) narrow the run, `LUMEN_FIT_JSON=fit.json` writes every finding,
+`LUMEN_FIT_SHOTS=<folder>` saves a screenshot of every view. A whole run (ten languages, five
+sizes, both skins) took 27 minutes on the project's server (2026-10-22, playwright-core 1.64.1,
+Chromium 156 headless shell, `php -S`); its largest process stayed at 130 MB resident, and it ran
+within the 300 MB cap of "Memory on a small server". It is not part of CI: it needs a Roundcube
+tree, PHP and a browser download.
