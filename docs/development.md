@@ -13,7 +13,7 @@ gallery are put together. Installing the skin on a server is in [install.md](ins
 | `gallery/` | the design-system gallery (React, Vite) and `data.mjs`, which reads our tokens and labels at build time |
 | `generator/lumen_mail/` | the Python package behind `python3 -m lumen_mail` (standard library only) and `compile.mjs`, the Node driver of the LESS compiler |
 | `contrib/systemd/` | the sync service, path and timer units |
-| `scripts/` | release package, contrast table, palette bundle check, font and thumbnail builders, repository checks |
+| `scripts/` | release package, contrast table, palette bundle check, font and thumbnail builders, repository checks, the README screenshots (`screenshots/`) |
 | `tests/` | Python tests (fake Roundcube tree, stub compiler, a real-compile integration test) and `tests/js/` (`node --test`) |
 
 Nothing from Roundcube or Elastic is in the repository; the generator reads the installed Elastic
@@ -138,6 +138,57 @@ create the schema from `SQL/sqlite.initial.sql`, install the skin with
 `lumen-mail install --roundcube <copy> --state-dir <scratch>/state`, and serve
 `php -S 127.0.0.1:8080 -t <copy>/public_html`. The login page shows the skin; the palette appears
 on every page after login. Never point a test copy at a live database or mail server.
+
+## Screenshots
+
+The README's images in `docs/screenshots/` show a test copy of Roundcube with Lumen and invented
+example mail. Two files in `scripts/screenshots/` make them:
+
+- `lumen_screenshots/lumen_screenshots.php`, a Roundcube plugin that replaces the IMAP storage
+  with an in-memory mailbox: folders, fourteen messages in the inbox (text only, or text and HTML,
+  three with a PDF), unread and flagged states and a quota, in English and German. Every address
+  is at example.com, example.net or example.org. Any password logs in; `alex@example.com` gets
+  the English data, `jana@example.com` the German (for checking the translation by hand; no README
+  image uses it). It is active only under PHP's built-in web server (`php -S`) and for requests
+  from the loopback interface; anywhere else it does nothing but log that it is inactive. Never
+  enable it on a Roundcube that people use.
+- `capture.mjs`, which logs in through Roundcube's login form and takes four views in headless
+  Chromium: the login page (light), the mail view (dark) with a text message open, the command
+  palette (light) searching "se" and the User Interface preferences at 360 x 740 pixels (dark,
+  phone emulation). Before each screenshot it checks the skin, the colour mode, that Sora has
+  loaded and that nothing scrolls sideways; a page error, a failed request, a request to another
+  server or a failed check ends the run with exit code 1.
+
+To make them again:
+
+1. Make a test copy as described in the previous section and install Lumen into it.
+2. Copy `scripts/screenshots/lumen_screenshots/` to `<copy>/plugins/lumen_screenshots/` and set
+   `$config['plugins'] = ['lumen_screenshots'];` in the copy's `config/config.inc.php`.
+3. Serve the copy with `php -S 127.0.0.1:8080 -t <copy>/public_html`.
+4. Install `playwright-core` and Chromium's headless shell in a folder outside the repository
+   (they are not dependencies of lumen-mail), then capture into `docs/screenshots/`:
+
+   ```bash
+   mkdir -p /tmp/lumen-browser && cd /tmp/lumen-browser
+   npm install playwright-core@1 --ignore-scripts --no-audit --no-fund
+   PLAYWRIGHT_BROWSERS_PATH=$PWD/ms-playwright node node_modules/playwright-core/cli.js install chromium-headless-shell
+   cd -    # back to the repository
+   PLAYWRIGHT_CORE=/tmp/lumen-browser/node_modules/playwright-core/index.mjs \
+     PLAYWRIGHT_BROWSERS_PATH=/tmp/lumen-browser/ms-playwright \
+     node scripts/screenshots/capture.mjs http://127.0.0.1:8080 docs/screenshots
+   ```
+
+   `CHROMIUM=/path/to/chrome` uses another browser binary; `LUMEN_SHOTS=lumen-login,lumen-mail-dark`
+   takes only those views. If the browser does not start, it names the system libraries it misses.
+5. Look at every image, then recompress losslessly, for example with ImageMagick:
+   `convert in.png -strip -define png:compression-level=9 out.png` (`compare -metric AE in.png
+   out.png null:` prints 0 when the pixels are unchanged).
+
+The dates of the example messages are whole days before the day of the run, so the weekday names
+in the list change from run to run. The images in this repository were taken on 2026-10-22 with
+playwright-core 1.64.1 and Chromium 156 (headless shell) against Roundcube 1.7.3 served by
+`php -S` (PHP 8.3), 1280 x 800 and 360 x 740 pixels at a device scale factor of 1, and re-encoded
+losslessly with ImageMagick 6.9 (478 KB for the four).
 
 ## Releases
 
