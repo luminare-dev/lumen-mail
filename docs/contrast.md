@@ -66,10 +66,13 @@ Elastic's `html.dark-mode`. The task menu and the login hero are Night in both m
 | `focus` | `surface-sunken` | focus ring in the folder column, search field border | 3.0:1 | 7.03:1 pass (`#1F47C4` on `#F3F6FB`) | 12.57:1 pass (`#06F2C4` on `#0D1527`) |
 | `focus` | `primary-tint` | focus ring and list focus indicator on a selected row | 3.0:1 | 6.51:1 pass (`#1F47C4` on `#E9EDF9`) | 10.04:1 pass (`#06F2C4` on `#142B3E`) |
 | `primary` | `surface` | unread dot, checked controls, active tab underline, quota bar | 3.0:1 | 7.62:1 pass (`#1F47C4` on `#FFFFFF`) | 11.32:1 pass (`#5BDFFF` on `#10182B`) |
+| `primary` | `surface` | unread message subject | 4.5:1 | 7.62:1 pass (`#1F47C4` on `#FFFFFF`) | 11.32:1 pass (`#5BDFFF` on `#10182B`) |
+| `primary` | `surface-hover` | unread message subject in a hovered row | 4.5:1 | 6.93:1 pass (`#1F47C4` on `#F2F4FB`) | 10.31:1 pass (`#5BDFFF` on `#102236`) |
+| `primary` | `primary-tint` | unread message subject in a selected row | 4.5:1 | 6.51:1 pass (`#1F47C4` on `#E9EDF9`) | 9.30:1 pass (`#5BDFFF` on `#142B3E`) |
 | `scrollbar` | `bg` | scrollbar thumb | 3.0:1 | 3.43:1 pass (`#79859C` on `#F3F6FB`) | 3.48:1 pass (`#5E6B84` on `#0A1224`) |
 | `link` | `surface-raised` | matched characters in the command palette | 4.5:1 | 7.62:1 pass (`#1F47C4` on `#FFFFFF`) | 10.89:1 pass (`#5BDFFF` on `#131C2F`) |
 
-60 pairs; lowest ratio 3.43:1 in light mode and 3.17:1 in dark mode.
+63 pairs; lowest ratio 3.43:1 in light mode and 3.17:1 in dark mode.
 
 The command palette (palette/src/palette.css) draws with the same tokens in its shadow root;
 its pairs (dialog text, hints, matched characters, the active row, the focus ring) are rows above.
