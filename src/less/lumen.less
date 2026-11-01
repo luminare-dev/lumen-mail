@@ -8,7 +8,7 @@
 //
 // Rules use the --lm-* custom properties (light by default, dark under html.dark-mode) and
 // logical properties (margin-inline, inset-inline-start ...), so they also hold under dir=rtl.
-// Selector names are Elastic's (see docs/elastic-inventory.md); no Elastic rule is copied.
+// Selector names are Elastic's; no Elastic rule is copied.
 
 // ---------------------------------------------------------------------------------------------
 // Tokens as custom properties, font
@@ -194,7 +194,6 @@ html.touch .btn:focus-visible {
 // rail, off centre, and German labels ("Einstellungen", "Dunkler Modus") were cut off. Each link
 // takes the rail's full width (@layout-menu-width), and the label the link's full width: Elastic's
 // 0.1em of padding on each side is dropped (a centred label stays where it was).
-// docs/adr/0011-long-labels-get-room.md
 @media screen and (min-width: (@screen-width-medium + 1px)) {
     #taskmenu a {
         max-width: none;

@@ -9,25 +9,17 @@ There are two ways to install Lumen:
 | Roundcube | any release whose Elastic passes the drift check | the same minor series as the package (1.7.x for `roundcube-1.7.3`) |
 | After a Roundcube update | rebuilt automatically by the sync units | install the matching package by hand |
 
-Roundcube support: Lumen is tested with Roundcube 1.7.3 (as shipped by KeyHelp 26.1.1) and
-supported on the 1.7 series. It relies on skin localization (Roundcube 1.4), Elastic's dark mode
-and the `[dark]`, `[small]` and `[small-dark]` logo types (1.5) and, for the url and file type
-checks, `public_html/static.php` (1.7, where it serves every skin file); Roundcube's CHANGELOG
-dates each feature. The command palette uses only `rcmail.command()`, `rcmail.commands`,
-`rcmail.env` (task, mailboxes, delimiter) and `rcmail.get_label()`, which are older. So 1.5 is
-the oldest release the features allow; releases before 1.7 are untested. The build's drift check
-stops with the exact name of anything that is missing, including the core labels the palette
-shows.
+Lumen is tested with Roundcube 1.7.3 (as shipped by KeyHelp 26.1.1) and supported on the 1.7
+series. The build's drift check stops with the exact name of anything Lumen relies on that is
+missing.
 
 ## On a KeyHelp server
 
 KeyHelp keeps Roundcube in `/home/keyhelp/www/roundcube` (owner `keyhelp:keyhelp`) and replaces
-that whole folder when it updates Roundcube. The sync units put `skins/lumen` back within
-seconds and rebuild it for the new release ([update safety](update-safety.md)). Run everything
-below as root: `install-runtime` writes `/opt/lumen-mail` as root, and every other command
-prepares `/var/lib/lumen-mail` as root and then continues as `keyhelp`, the owner of
-`skins/` ([running as root](cli.md#running-as-root)). The compile never runs as root, because
-`keyhelp` also runs the webmail's PHP and can change Elastic's LESS.
+that whole folder when it updates Roundcube; the sync units put `skins/lumen` back
+([update safety](update-safety.md)). Run everything below as root: lumen-mail prepares
+`/var/lib/lumen-mail` and then continues as `keyhelp`, so the compile never runs as root
+([running as root](cli.md#running-as-root)).
 
 1. Get the sources, the locked packages and the command palette:
 
@@ -38,12 +30,9 @@ prepares `/var/lib/lumen-mail` as root and then continues as `keyhelp`, the owne
    npm run build:palette
    ```
 
-   `npm ci` installs the compiler and the palette's build tools (no install scripts run);
-   `build:palette` writes `palette/dist/lumen-palette.js` and checks it. On a server with little
-   free memory, start both with the `systemd-run ... choom` prefix of step 3 (they peaked at
-   147 MB and 150 MB here). Without npm's development packages, take `lumen/lumen-palette.js`
-   from the release package of the same version and pass `--palette <file>` to
-   `install-runtime`: every build includes the palette, there is no option to leave it out.
+   On a server with little free memory, use the `systemd-run` prefix of step 3. Without npm's
+   development packages, take `lumen/lumen-palette.js` from the release package of the same
+   version and pass `--palette <file>` to `install-runtime`.
 
 2. Install the runtime (generator, sources, the palette bundle and the compiler only). The sync
    units run from this copy, never from the checkout, and never need Vite:
@@ -64,11 +53,9 @@ prepares `/var/lib/lumen-mail` as root and then continues as `keyhelp`, the owne
      /opt/lumen-mail/bin/lumen-mail install --roundcube /home/keyhelp/www/roundcube
    ```
 
-   The `systemd-run` line caps memory and priority for the short compile on a busy host (it
-   peaked at 114 MB RSS and took under 2 s here), and `choom` makes the compile the first process
-   the kernel stops if memory runs out. Plain `/opt/lumen-mail/bin/lumen-mail install
-   --roundcube ...` works too. The command prints the commands that undo it and keeps them in
-   `/var/lib/lumen-mail/ROLLBACK.txt`.
+   The `systemd-run` line caps memory and priority for the short compile; plain
+   `/opt/lumen-mail/bin/lumen-mail install --roundcube ...` works too. The command prints how to
+   undo it and keeps that in `/var/lib/lumen-mail/ROLLBACK.txt`.
 
 4. Install and start the units:
 
@@ -85,14 +72,7 @@ prepares `/var/lib/lumen-mail` as root and then continues as `keyhelp`, the owne
    `config.inc.php`; lumen-mail never edits that file. If Lumen is not in the list, check
    `ls /home/keyhelp/www/roundcube/skins/` and the owner of `skins/lumen`.
 
-   If the list still shows only Elastic while `skins/lumen` exists and belongs to
-   `keyhelp:keyhelp`, KeyHelp uses a fixed list of skins. Its `config.inc.php` template writes the
-   skin from KeyHelp's own setting and has no place for a local addition, so there is then no
-   lasting system-wide way to select Lumen without KeyHelp's support (lumen-mail does not edit
-   `config.inc.php`, and KeyHelp would overwrite it). Each user can still choose Lumen under
-   **Settings → Preferences → User Interface → Interface skin**, which Roundcube shows as soon as
-   `skins/` holds more than one skin. Keep the sync units installed either way: a user's `lumen`
-   preference falls back to the system skin while `skins/lumen` is missing after an update.
+   If the list still shows only Elastic, see [troubleshooting](troubleshooting.md#lumen-is-missing-from-the-skin-chooser).
 
 KeyHelp is a registered trademark of Keyweb AG. This project is not affiliated with or endorsed
 by Keyweb AG.
