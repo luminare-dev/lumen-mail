@@ -88,7 +88,7 @@ def _rules(spec: list[tuple[str, str, str]]) -> list[Rule]:
 S = r"[\s-]+"  # one or more spaces or hyphens between the words of a phrase
 
 # --------------------------------------------------------------------------------------------
-# Wording rules: the publishing rules in PUBLISHING.md (part B). Public project text describes
+# Wording rules. Public project text describes
 # what the code does; it carries no price, offer, funding, store or "coming soon" wording.
 #
 # Tuning notes (false positives found in infra docs, kept out on purpose):
@@ -226,7 +226,7 @@ TEXT_RULES.append(Rule("mixed-script", "word mixes Latin with Cyrillic or Greek 
                        re.compile(r"\w*[^\x00-\x7f\W]\w*"), _mixes_scripts))
 
 # --------------------------------------------------------------------------------------------
-# Name rules (PUBLISHING.md B4): platform and vendor marks stay out of every name. Platform
+# Name rules: platform and vendor marks stay out of every name. Platform
 # names belong in descriptions and topics ("... for FiveM/RedM servers (FXServer)"). Registry
 # conventions such as "ansible-collection-<name>" or "terraform-provider-<name>" are
 # descriptive use and need an "@name" allowlist entry.
