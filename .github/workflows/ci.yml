@@ -1,11 +1,5 @@
-# Caller: lint, tests and the full-history secret scan on every pull request and push to main,
-# plus two project jobs:
-#   node     the command palette and the gallery: npm ci, type check, Vitest, node --test, the
-#            palette bundle (with its size and API check) and the gallery, kept as artifacts;
-#   package  the skin: a compiler-only install (like a server), the palette bundle from the node
-#            job, the real LESS compile against the Elastic skin of a pinned Roundcube release,
-#            and the release package built from it (kept as the "lumen-package" artifact).
-# Required checks for the main ruleset: "ci / lint-test", "node", "package" and "secrets / gitleaks".
+# Lint, tests and secret scan, plus the palette/gallery build (node) and the real
+# compile and release package against a pinned Roundcube (package).
 name: ci
 
 on:

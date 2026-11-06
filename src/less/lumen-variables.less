@@ -7,7 +7,6 @@
 // Only variable names are taken from Elastic; every value is ours. The build checks that each
 // Elastic variable set here still exists in the installed Elastic sources and fails with the
 // name of any that is gone (an Elastic update renamed it), so an override can never go silent.
-// See docs/elastic-inventory.md for what each group changes and why.
 
 // ---------------------------------------------------------------------------------------------
 // Base palette
@@ -42,7 +41,7 @@
 // Wider task menu: Sora is wider than Roboto, and at Elastic's 78px German labels are cut
 // ("Dunkler Modus" is 91px at 12px, "Einstellungen" 82px, measured in Chromium). lumen.less lets
 // the rail's links take this full width: Elastic caps every toolbar link at 6rem (84px), the
-// rail's too (docs/adr/0011-long-labels-get-room.md).
+// rail's too.
 @layout-menu-width:             @lm-rail-width;
 
 // ---------------------------------------------------------------------------------------------

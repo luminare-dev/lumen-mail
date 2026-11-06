@@ -8,6 +8,13 @@ the Conventional Commit titles of the merged pull requests; do not edit entries 
 <!-- release-please inserts each new release above the first line that starts with "## ["
      (or "## " and a digit). Keep the "Origin" entry below as the last entry of this file. -->
 
+## [0.1.1](https://github.com/luminare-dev/lumen-mail/compare/v0.1.0...v0.1.1) (2026-10-22)
+
+
+### Fixed
+
+* **skin:** keep long labels readable instead of cutting them off ([#4](https://github.com/luminare-dev/lumen-mail/issues/4)) ([fcabc0a](https://github.com/luminare-dev/lumen-mail/commit/fcabc0a6123281e5c6b012055ba51c50b4ee5dd5))
+
 ## 0.1.0 (2026-10-21)
 
 
