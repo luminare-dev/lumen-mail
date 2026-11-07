@@ -1,8 +1,8 @@
 // Data for the gallery, read at build time from this repository's own sources (never from
 // Roundcube): the design tokens (src/less/lumen-tokens.less), the colour pairs the contrast
 // check covers (src/less/contrast-pairs.json), the skin's labels (skin/localization/*.inc) and,
-// optionally, a built skin for the preview pages (LUMEN_GALLERY_SKINS, see gallery/README section
-// in the main README). Plain Node, no dependencies; tests/js/gallery-data.test.mjs covers it.
+// optionally, a built skin for the preview pages (LUMEN_GALLERY_SKINS, see
+// docs/development.md). Plain Node, no dependencies; tests/js/gallery-data.test.mjs covers it.
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
