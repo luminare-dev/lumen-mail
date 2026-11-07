@@ -8,6 +8,13 @@ the Conventional Commit titles of the merged pull requests; do not edit entries 
 <!-- release-please inserts each new release above the first line that starts with "## ["
      (or "## " and a digit). Keep the "Origin" entry below as the last entry of this file. -->
 
+## [0.1.2](https://github.com/luminare-dev/lumen-mail/compare/v0.1.1...v0.1.2) (2026-11-07)
+
+
+### Fixed
+
+* **skin:** show unread messages in the brand colour ([#6](https://github.com/luminare-dev/lumen-mail/issues/6)) ([699fc98](https://github.com/luminare-dev/lumen-mail/commit/699fc98822912d2c2e53230e225ec670048f822e))
+
 ## [0.1.1](https://github.com/luminare-dev/lumen-mail/compare/v0.1.0...v0.1.1) (2026-10-22)
 
 
