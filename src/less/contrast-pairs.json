@@ -59,6 +59,9 @@
     {"fg": "focus", "bg": "surface-sunken", "min": 3.0, "use": "focus ring in the folder column, search field border", "where": "lumen.less .searchbar:focus-within"},
     {"fg": "focus", "bg": "primary-tint", "min": 3.0, "use": "focus ring and list focus indicator on a selected row", "where": "lumen.less, @color-list-focus-indicator"},
     {"fg": "primary", "bg": "surface", "min": 3.0, "use": "unread dot, checked controls, active tab underline, quota bar", "where": "@color-list-unread-status, @color-checkbox, .nav-tabs"},
+    {"fg": "primary", "bg": "surface", "min": 4.5, "use": "unread message subject", "where": "lumen.less .messagelist tr.unread span.subject a"},
+    {"fg": "primary", "bg": "surface-hover", "min": 4.5, "use": "unread message subject in a hovered row", "where": "lumen.less .messagelist tr.unread, row hover"},
+    {"fg": "primary", "bg": "primary-tint", "min": 4.5, "use": "unread message subject in a selected row", "where": "lumen.less .messagelist tr.unread, @color-list-selected-background"},
     {"fg": "scrollbar", "bg": "bg", "min": 3.0, "use": "scrollbar thumb", "where": "@color-scrollbar-thumb, @color-dark-scrollbar-thumb"},
     {"fg": "link", "bg": "surface-raised", "min": 4.5, "use": "matched characters in the command palette", "where": "palette/src/palette.css mark"}
   ]
