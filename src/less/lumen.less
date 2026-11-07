@@ -461,6 +461,15 @@ html:not(.touch) #layout-list table.listing tbody tr:not(.selected):hover td {
     tr.unread td.subject span.subject a {
         font-weight: 600;
     }
+
+    // Unread rows take the brand primary, the colour of the folder list's unread badge
+    // (Royal in light mode, Lumen in dark mode); flagged and deleted rows keep their colours.
+    tr.unread:not(.flagged):not(.deleted) td.subject {
+        span.subject a,
+        span.msgicon.status.unread:before {
+            color: var(--lm-primary);
+        }
+    }
 }
 
 .listing-info {
