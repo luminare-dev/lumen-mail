@@ -10,11 +10,17 @@ updates:
     cooldown:
       default-days: 7
     commit-message:
-      prefix: ci(deps)
+      prefix: ci
+      include: scope
     labels: [dependencies]
+    open-pull-requests-limit: 5
     groups:
       actions:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
+      actions-major:
+        patterns: ["*"]
+        update-types: ["major"]
 
   - package-ecosystem: pip
     directory: /
@@ -24,11 +30,17 @@ updates:
     cooldown:
       default-days: 7
     commit-message:
-      prefix: build(deps)
+      prefix: build
+      include: scope
     labels: [dependencies]
+    open-pull-requests-limit: 5
     groups:
       dev-tools:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
+      dev-tools-major:
+        patterns: ["*"]
+        update-types: ["major"]
 
   - package-ecosystem: npm
     directory: /
@@ -38,12 +50,21 @@ updates:
     cooldown:
       default-days: 7
     commit-message:
-      prefix: build(deps)
+      prefix: build
+      include: scope
     labels: [dependencies]
     open-pull-requests-limit: 5
     groups:
       css-compiler:
         patterns: ["less", "clean-css"]
+        update-types: ["minor", "patch"]
       palette-toolchain:
         patterns: ["react", "react-dom", "@types/react", "@types/react-dom", "vite", "@vitejs/*", "vitest",
                    "jsdom", "@testing-library/*", "typescript"]
+        update-types: ["minor", "patch"]
+      npm:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+      npm-major:
+        patterns: ["*"]
+        update-types: ["major"]

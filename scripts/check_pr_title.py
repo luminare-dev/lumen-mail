@@ -29,6 +29,7 @@ from forbidden_words import check_string  # noqa: E402
 TYPES = ("feat", "fix", "docs", "refactor", "perf", "test", "style", "build", "ci", "chore", "revert", "security")
 TITLE_RE = re.compile(r"^(?P<type>[a-z]+)(?:\((?P<scope>[a-z0-9][a-z0-9._/-]*)\))?(?P<bang>!)?: (?P<subject>\S.*)$")
 MAX_LENGTH = 100
+# Dependabot titles can run past MAX_LENGTH ("... in the actions group across 1 directory").
 DEPENDABOT = "dependabot[bot]"
 
 
@@ -48,7 +49,7 @@ def problems(title: str, author: str = "") -> list[str]:
         dependabot_bump = author == DEPENDABOT and subject.split()[0] == "Bump"
         if subject[:1].isupper() and not subject.split()[0].isupper() and not dependabot_bump:
             out.append("the summary must start with a lower-case letter (imperative mood: 'add', 'fix')")
-    if len(title) > MAX_LENGTH:
+    if len(title) > MAX_LENGTH and author != DEPENDABOT:
         out.append(f"the title is {len(title)} characters long; keep it to {MAX_LENGTH}")
     out += [f"wording: {e.split(': ', 1)[-1]}" for e in check_string(title)]
     return out
