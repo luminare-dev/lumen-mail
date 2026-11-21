@@ -49,6 +49,13 @@ class TitleTest(unittest.TestCase):
         self.assertTrue(pt.problems(title))
         self.assertTrue(pt.problems("build(deps): Update vite", "dependabot[bot]"))
 
+    def test_dependabot_may_exceed_the_length_limit(self):
+        title = ("ci(deps): Bump DavidAnson/markdownlint-cli2-action from 24.2.0 to 25.0.0 "
+                 "in the actions group across 1 directory")
+        self.assertGreater(len(title), pt.MAX_LENGTH)
+        self.assertEqual(pt.problems(title, "dependabot[bot]"), [])
+        self.assertTrue(pt.problems(title.replace("Bump", "bump"), "someone"))
+
     def test_cli(self):
         with redirect_stdout(io.StringIO()):
             self.assertEqual(pt.main(["fix: correct the retry delay"]), 0)
