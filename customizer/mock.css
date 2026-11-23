@@ -2,6 +2,7 @@
    the skin's --lm-* role variables, which the customizer sets from the tokens with the same
    formulas tokens/roundcube.ts writes into lumen-custom.less. */
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; height: 100%; }
 body { background: var(--lm-bg); color: var(--lm-text); font: var(--lm-page-font-size, 14px)/1.45 var(--lm-font); -webkit-font-smoothing: antialiased; }
 svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
