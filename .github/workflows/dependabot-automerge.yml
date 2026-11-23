@@ -36,8 +36,8 @@ jobs:
           set -euo pipefail
           commits="$(gh api "repos/$REPO/pulls/$PR_NUMBER/commits?per_page=100")"
           authors="$(jq -r '[.[].author.login // "unknown"] | unique | join(",")' <<<"$commits")"
-          if [ "$authors" != "dependabot[bot]" ]; then
-            echo "::notice::Commits by $authors; left for a manual review."
+          if [ "$authors" != "dependabot[bot]" ] || ! jq -e 'all(.[]; .commit.verification.verified == true)' <<<"$commits" >/dev/null; then
+            echo "::notice::Non-Dependabot or unverified commits; left for a manual review."
             exit 0
           fi
           export MESSAGE
