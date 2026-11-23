@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; frame-src 'self'; form-action 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
+<title>Lumen mail customizer</title>
+<style>
+:root {
+    --bg: #F3F6FB; --panel: #FFFFFF; --sunken: #E8EDF5; --line: #D6DDEA; --text: #0A1224; --muted: #4F5B73;
+    --accent: #1F47C4; --on-accent: #FFFFFF; --warn: #9A4503; --ok: #027A3D; color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+    :root { --bg: #060B17; --panel: #0F1A30; --sunken: #0A1224; --line: #24345A; --text: #F3F6FB; --muted: #B7C1D3;
+        --accent: #5BDFFF; --on-accent: #0A1224; --warn: #FFB334; --ok: #58DD70; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header.page { padding: 18px 24px 6px; }
+header.page h1 { margin: 0; font-size: 1.4rem; }
+header.page p { margin: 4px 0 0; color: var(--muted); max-width: 80ch; }
+main { display: grid; grid-template-columns: minmax(320px, 400px) 1fr; gap: 20px; padding: 14px 24px 28px; align-items: start; }
+@media (max-width: 980px) { main { grid-template-columns: 1fr; padding: 12px 16px 24px; } header.page { padding: 16px 16px 4px; } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+.card + .card { margin-top: 14px; }
+details.card > summary { cursor: pointer; font-weight: 650; font-size: 0.98rem; list-style: none; }
+details.card > summary::before { content: "▸ "; color: var(--muted); }
+details.card[open] > summary::before { content: "▾ "; }
+details.card[open] > summary { margin-bottom: 6px; }
+h2 { margin: 0 0 8px; font-size: 0.98rem; }
+label { display: block; font-size: 0.82rem; color: var(--muted); margin: 9px 0 3px; }
+select, input[type="text"], input[type="url"], input[type="number"], textarea { width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 9px; background: var(--sunken); color: var(--text); font: inherit; }
+textarea { min-height: 120px; font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; flex-wrap: wrap; }
+.seg button { border: 0; background: transparent; color: var(--text); padding: 6px 12px; font: inherit; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+.roles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
+.role { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.role input[type="color"] { width: 32px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: none; flex: none; }
+.role input[type="text"] { padding: 4px 6px; font: 12px ui-monospace, Menlo, Consolas, monospace; }
+.role span { font-size: 0.75rem; color: var(--muted); display: block; line-height: 1.2; }
+.role.bad span { color: var(--warn); font-weight: 600; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+.btn { border: 1px solid var(--line); background: var(--sunken); color: var(--text); border-radius: 9px; padding: 7px 12px; font: inherit; font-weight: 600; cursor: pointer; }
+.btn.primary { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+.btn.small { padding: 3px 8px; font-size: 0.8rem; }
+.btn:focus-visible, .seg button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.check { display: flex; gap: 8px; align-items: center; margin-top: 9px; color: var(--text); font-size: 0.88rem; }
+.hint { font-size: 0.78rem; color: var(--muted); margin: 6px 0 0; }
+.notes { margin: 8px 0 0; padding-left: 18px; font-size: 0.82rem; }
+.notes li.warn { color: var(--warn); }
+.notes li.ok { color: var(--ok); list-style: none; margin-left: -18px; }
+.status { font-size: 0.85rem; color: var(--muted); min-height: 1.3em; margin-top: 8px; }
+.asset { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; align-items: end; }
+.asset .thumb { grid-column: 1 / -1; height: 34px; display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: var(--muted); }
+.asset .thumb img { max-height: 34px; max-width: 160px; background: repeating-conic-gradient(#8882 0 25%, transparent 0 50%) 0 0 / 10px 10px; border-radius: 4px; }
+dialog { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); color: var(--text); width: min(640px, calc(100vw - 32px)); }
+dialog::backdrop { background: rgb(0 0 0 / 0.5); }
+.stage { position: sticky; top: 14px; }
+.stage-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+.frame { width: 100%; height: min(820px, calc(100vh - 90px)); min-height: 520px; border: 1px solid var(--line); border-radius: 12px; background: #fff; box-shadow: 0 20px 50px -24px rgb(0 0 0 / 0.5); display: block; }
+footer.page { padding: 0 24px 24px; color: var(--muted); font-size: 0.82rem; }
+code { font: 0.85em ui-monospace, Menlo, Consolas, monospace; }
+</style>
+</head>
+<body>
+<header class="page">
+    <h1>Lumen mail customizer</h1>
+    <p>Pick a preset, change colours, type, shape, logos and CSS, check the preview and download a customization ZIP for
+    the Lumen skin of Roundcube Webmail. Everything happens in this page; nothing is uploaded. Token files are the same
+    as for the other Lumen themes.</p>
+</header>
+<main>
+    <section aria-label="Settings">
+        <div class="card">
+            <h2>Start</h2>
+            <label for="preset">Preset</label>
+            <select id="preset"></select>
+            <div class="two">
+                <div><label for="name">Name</label><input type="text" id="name" maxlength="200" autocomplete="off"></div>
+                <div><label for="product">Product name (logo text)</label><input type="text" id="product" maxlength="60" autocomplete="off"></div>
+            </div>
+            <label for="description">Description</label>
+            <input type="text" id="description" maxlength="200" autocomplete="off">
+        </div>
+
+        <details class="card" open>
+            <summary>Colours (<span id="mode-label">light</span>)</summary>
+            <p class="hint">Each mode has its own palette. Switch the preview to edit the other one. The task rail and the login page use the dark palette in both modes.</p>
+            <div class="roles" id="roles"></div>
+            <ul class="notes" id="notes" aria-live="polite"></ul>
+        </details>
+
+        <details class="card">
+            <summary>Typography</summary>
+            <datalist id="families"><option value="Sora"><option value="system-ui, sans-serif"><option value="Inter, system-ui, sans-serif"><option value="Georgia, serif"><option value="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"></datalist>
+            <label for="f-display">Headings</label><input type="text" id="f-display" list="families" data-path="typography.display">
+            <label for="f-body">Body</label><input type="text" id="f-body" list="families" data-path="typography.body">
+            <label for="f-mono">Code</label><input type="text" id="f-mono" list="families" data-path="typography.mono">
+            <p class="hint">Sora ships with the skin. Other fonts must be installed on the visitor's device, or uploaded under Branding and loaded with <code>@font-face</code> in custom CSS.</p>
+            <label for="scale">Text size <output id="scale-out"></output></label>
+            <input type="range" id="scale" min="0.85" max="1.25" step="0.01" data-path="typography.scale" data-num>
+            <label for="weight">Heading weight <output id="weight-out"></output></label>
+            <input type="range" id="weight" min="400" max="800" step="50" data-path="typography.headingWeight" data-num>
+        </details>
+
+        <details class="card">
+            <summary>Shape, spacing and layout</summary>
+            <label for="radius">Corner radius <output id="radius-out"></output></label>
+            <input type="range" id="radius" min="0" max="28" step="1" data-path="radius.base" data-num>
+            <label for="spacing">Spacing unit <output id="spacing-out"></output></label>
+            <input type="range" id="spacing" min="3" max="6" step="0.5" data-path="spacing.base" data-num>
+            <div class="two">
+                <div><label for="density">Density</label>
+                    <select id="density" data-path="density"><option value="compact">Compact</option><option value="comfortable">Comfortable</option><option value="spacious">Spacious</option></select></div>
+                <div><label for="shadow">Shadows</label>
+                    <select id="shadow" data-path="elevation.shadow"><option value="none">None</option><option value="soft">Soft</option><option value="medium">Medium</option><option value="strong">Strong</option></select></div>
+            </div>
+            <label class="check"><input type="checkbox" id="borders" data-path="elevation.borders"> Borders between the columns</label>
+            <label class="check"><input type="checkbox" id="glow" data-path="layout.backgroundGlow"> Accent light behind the login page</label>
+            <details style="margin-top:10px">
+                <summary class="hint" style="cursor:pointer">Values only other Lumen themes use</summary>
+                <p class="hint">Roundcube keeps its own column layout and switches dark mode per user, so these are kept in the token file for the panel and browser themes but change nothing here.</p>
+                <div class="two">
+                    <div><label for="sidebar">Sidebar</label><select id="sidebar" data-path="layout.sidebar"><option value="floating">Floating</option><option value="flush">Flush</option></select></div>
+                    <div><label for="width">Content width</label><select id="width" data-path="layout.contentWidth"><option value="full">Full</option><option value="wide">Wide</option><option value="narrow">Narrow</option></select></div>
+                    <div><label for="sbw">Sidebar width</label><input type="number" id="sbw" min="220" max="360" step="10" data-path="layout.sidebarWidth" data-num></div>
+                    <div><label for="indicator">Active menu item</label><select id="indicator" data-path="layout.indicator"><option value="pill">Pill</option><option value="bar">Bar</option><option value="glow">Glow</option></select></div>
+                    <div><label for="mode-default">Default mode</label><select id="mode-default" data-path="mode.default"><option value="system">System</option><option value="dark">Dark</option><option value="light">Light</option></select></div>
+                </div>
+                <label class="check"><input type="checkbox" id="toggle" data-path="mode.allowToggle"> Users may switch the mode</label>
+            </details>
+        </details>
+
+        <details class="card">
+            <summary>Branding</summary>
+            <p class="hint">PNG, JPEG, WebP, GIF, ICO or SVG up to 4 MB, kept in this page and added to the ZIP. Roundcube serves skin files only, so upload logos instead of linking them. The logo sits on the dark task rail and login page: the dark-mode logo is used, or the light one when there is none. SVG files with scripts, event handlers or outside references are refused (the server checks again).</p>
+            <div id="assets"></div>
+            <label for="f-font">Font file for custom CSS (WOFF2 or WOFF)</label>
+            <div class="row"><input type="file" id="f-font" accept=".woff2,.woff"><span class="hint" id="font-name"></span></div>
+        </details>
+
+        <details class="card">
+            <summary>Custom CSS</summary>
+            <p class="hint">Added after the skin's stylesheet. Use the variables (<code>var(--lm-surface)</code>, <code>var(--lumen-accent)</code>) so rules follow both modes; dark mode is <code>html.dark-mode</code>. Uploaded files are <code>url("/storage/lumen/&lt;file&gt;")</code>.</p>
+            <textarea id="css" data-path="customCss" spellcheck="false" aria-label="Custom CSS"></textarea>
+        </details>
+
+        <div class="card">
+            <h2>Files</h2>
+            <div class="row">
+                <button type="button" class="btn primary" id="dl-zip">Download customization ZIP</button>
+                <button type="button" class="btn" id="export">Export tokens</button>
+            </div>
+            <div class="row" style="margin-top:8px">
+                <button type="button" class="btn" id="import">Import tokens or ZIP</button>
+                <button type="button" class="btn" id="reset">Reset</button>
+            </div>
+            <input type="file" id="file" accept="application/json,.json,.zip,application/zip" hidden>
+            <div class="status" id="status" role="status"></div>
+            <p class="hint">Install the ZIP on the Roundcube server with <code>lumen-mail apply-custom &lt;zip&gt; --roundcube /var/www/roundcube</code> (a dry run; add <code>--yes</code>). The skin is then compiled there from the installed Elastic. The ZIP holds only the compiled LESS and CSS overrides, the token file and your uploads.</p>
+        </div>
+    </section>
+
+    <section class="stage" aria-label="Preview">
+        <div class="stage-bar">
+            <div class="seg" role="group" aria-label="Preview mode">
+                <button type="button" data-mode="light" aria-pressed="true">Light</button>
+                <button type="button" data-mode="dark" aria-pressed="false">Dark mode</button>
+            </div>
+            <div class="seg" role="group" aria-label="Screen">
+                <button type="button" data-screen="mail" aria-pressed="true">Mail</button>
+                <button type="button" data-screen="login" aria-pressed="false">Login</button>
+            </div>
+        </div>
+        <iframe class="frame" id="frame" title="Preview of the webmail"></iframe>
+    </section>
+</main>
+<footer class="page">
+    lumen-mail @VERSION@ customizer, a Luminare Development open-source project (MIT). The preview is a mock with example
+    data, written for this page (no Roundcube or Elastic file); the Sora font (SIL OFL 1.1) is embedded for it. lumen-mail
+    is not affiliated with or endorsed by the Roundcube project.
+</footer>
+
+<dialog id="import-dialog">
+    <form method="dialog">
+        <h2 style="margin-top:0">Import</h2>
+        <p class="hint" style="margin:0 0 8px">Paste a Lumen token JSON (an export of any Lumen theme works), or choose a token file or a ZIP made here.</p>
+        <textarea id="import-text" aria-label="Token JSON" spellcheck="false"></textarea>
+        <div class="row" style="margin-top:10px">
+            <button class="btn primary" value="paste" type="submit">Import</button>
+            <button class="btn" value="file" type="submit">Choose a file</button>
+            <button class="btn" value="cancel" type="submit">Cancel</button>
+        </div>
+    </form>
+</dialog>
+
+<template id="mock"><!--@MOCK@--></template>
+<script type="application/json" id="lumen-presets">/*@PRESETS@*/</script>
+<script type="application/json" id="lumen-assets">/*@ASSETS@*/</script>
+<script id="lumen-core">
+/*@CORE@*/
+</script>
+<script id="lumen-ui">
+(function () {
+    "use strict";
+    var LT = window.LumenTokens;
+    var PRESETS = JSON.parse(document.getElementById("lumen-presets").textContent);
+    var ASSETS = JSON.parse(document.getElementById("lumen-assets").textContent);
+    var ORDER = ["luminare", "graphite", "aurora", "contrast"];
+    var DEFAULT = PRESETS.luminare;
+    var ROLE_LABEL = {
+        canvas: "Page background", surfaceSunken: "Sunken areas", surface: "Cards", surfaceRaised: "Hover, raised",
+        border: "Borders", text: "Text", textMuted: "Muted text", accent: "Accent (buttons)",
+        accentSecondary: "Accent, second", accentText: "Links", accentContrast: "Text on accent",
+        success: "Success", warning: "Warning", danger: "Danger", info: "Info", focus: "Focus ring"
+    };
+    var SLOTS = [
+        ["logoLight", "logo-light", "Logo for light backgrounds (used when there is no dark one)"],
+        ["logoDark", "logo-dark", "Logo for the dark task rail and login page"],
+        ["favicon", "favicon", "Favicon"],
+        ["loginBackground", "login-background", "Login background image"]
+    ];
+    var TYPES = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif",
+        ico: "image/x-icon", svg: "image/svg+xml", woff: "font/woff", woff2: "font/woff2" };
+    var SVG_BAD = /<script|<foreignobject|<!entity|<!doctype|<use\b|<animate|<set\b|\son[a-z]+\s*=|javascript:|@import|(?:href|src)\s*=\s*["'](?!#)|url\(\s*["']?(?!#)/i;
+    var MAX = 4 * 1024 * 1024;
+
+    var doc, media = {}, mode = "light", screen = "mail";
+    var $ = function (id) { return document.getElementById(id); };
+    function clone(v) { return JSON.parse(JSON.stringify(v)); }
+    function tokens() { return LT.normalize(doc, DEFAULT).tokens; }
+    function status(msg) { $("status").textContent = msg; }
+    function slug(name) { return (name || "custom").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "custom"; }
+    function palette() { return mode; }
+    function get(path) { return path.split(".").reduce(function (o, k) { return o == null ? undefined : o[k]; }, tokens()); }
+    function set(path, value) {
+        var keys = path.split("."), o = doc;
+        keys.slice(0, -1).forEach(function (k) { if (!o[k] || typeof o[k] !== "object") o[k] = {}; o = o[k]; });
+        o[keys[keys.length - 1]] = value;
+    }
+    function bytesUrl(m) { return "data:" + m.type + ";base64," + b64(m.bytes); }
+    function b64(bytes) {
+        var s = "", chunk = 0x8000;
+        for (var i = 0; i < bytes.length; i += chunk) s += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+        return btoa(s);
+    }
+    // A token URL as the preview can show it (no network: an https file is not loaded).
+    function previewUrl(value) {
+        if (!value) return "";
+        if (value.indexOf("/images/custom/") === 0) { var m = media[value.slice(15)]; return m ? m.url : ""; }
+        if (value.indexOf("/images/") === 0) return ASSETS.brand[value] || "";
+        return "";
+    }
+
+    // ---- preview -------------------------------------------------------------------------
+    var frame = $("frame"), frameMode = null, frameReady = false;
+    function writeFrame() {
+        var html = "<!doctype html><html" + (mode === "dark" ? ' class="dark-mode"' : "") + "><head><meta charset=\"utf-8\">" +
+            "<style id=\"roles\"></style><style>" + ASSETS.css + "</style><style id=\"override\"></style>" +
+            "<style>.mock-logo{display:inline-flex;align-items:center;justify-content:center}.mock-logo img{display:block}</style>" +
+            "</head><body>" + document.getElementById("mock").innerHTML + "</body></html>";
+        frameReady = false;
+        frame.onload = function () { frameReady = true; frameMode = mode; paint(); };
+        frame.srcdoc = html;
+    }
+    function paint() {
+        if (!frameReady) return;
+        var d = frame.contentDocument, t = tokens();
+        d.getElementById("roles").textContent = ":root {\n" + LT.previewProperties(t, "light").join("\n") + "\n}\nhtml.dark-mode {\n" +
+            LT.previewProperties(t, "dark").join("\n") + "\n}\n";
+        var css = LT.compileCss(t).replace(/url\("\.\.(\/images\/[^"]+)"\)/g, function (all, p) { var u = previewUrl(p); return u ? 'url("' + u + '")' : "none"; });
+        d.getElementById("override").textContent = css;
+        d.body.className = screen === "login" ? "task-login" : "task-mail";
+        Array.prototype.forEach.call(d.querySelectorAll("[data-screen]"), function (el) { el.hidden = el.getAttribute("data-screen") !== screen; });
+        var login = d.querySelector(".m-login");
+        if (login) login.classList.toggle("no-glow", !t.layout.backgroundGlow || t.branding.loginBackground !== "");
+        var b = LT.branding(t);
+        Array.prototype.forEach.call(d.querySelectorAll("[data-logo]"), function (el) {
+            var value = b[el.getAttribute("data-logo")];
+            el.textContent = "";
+            var url = previewUrl(value);
+            if (url) {
+                var img = d.createElement("img");
+                img.src = url;
+                img.alt = b.productName || "Logo";
+                el.appendChild(img);
+            } else {
+                var span = d.createElement("span");
+                span.className = "m-text";
+                span.textContent = "Roundcube logo";
+                el.appendChild(span);
+            }
+        });
+    }
+
+    // ---- controls ------------------------------------------------------------------------
+    function renderRoles() {
+        var box = $("roles"), t = tokens(), m = palette();
+        box.textContent = "";
+        LT.COLOR_KEYS.forEach(function (role) {
+            var row = document.createElement("div");
+            row.className = "role";
+            row.dataset.role = role;
+            var picker = document.createElement("input");
+            picker.type = "color";
+            picker.value = t.color[m][role].toLowerCase();
+            picker.setAttribute("aria-label", ROLE_LABEL[role] + " colour");
+            var wrap = document.createElement("div");
+            wrap.style.minWidth = "0";
+            var text = document.createElement("input");
+            text.type = "text";
+            text.value = t.color[m][role];
+            text.maxLength = 7;
+            text.setAttribute("aria-label", ROLE_LABEL[role] + " hex");
+            var name = document.createElement("span");
+            name.textContent = ROLE_LABEL[role];
+            wrap.appendChild(text);
+            wrap.appendChild(name);
+            row.appendChild(picker);
+            row.appendChild(wrap);
+            function apply(v) { set("color." + m + "." + role, v.toUpperCase()); update(false); }
+            picker.addEventListener("input", function () { text.value = picker.value.toUpperCase(); apply(picker.value); });
+            text.addEventListener("change", function () {
+                var v = text.value.trim();
+                if (v[0] !== "#") v = "#" + v;
+                if (/^#[0-9a-fA-F]{6}$/.test(v)) { picker.value = v.toLowerCase(); text.value = v.toUpperCase(); apply(v); }
+                else { text.value = tokens().color[m][role]; status("Colours are #RRGGBB."); }
+            });
+            box.appendChild(row);
+        });
+    }
+    function renderContrast() {
+        var m = palette(), notes = $("notes"), bad = {};
+        notes.textContent = "";
+        LT.contrastReport(tokens()).filter(function (r) { return r.mode === m && !r.ok; }).forEach(function (r) {
+            bad[r.fg] = true;
+            var li = document.createElement("li");
+            li.className = "warn";
+            li.textContent = r.label + ": " + r.ratio.toFixed(2) + ":1, WCAG AA needs " + r.min + ":1";
+            notes.appendChild(li);
+        });
+        if (!notes.children.length) {
+            var ok = document.createElement("li");
+            ok.className = "ok";
+            ok.textContent = "Every text and focus pair passes WCAG 2.2 AA in this mode.";
+            notes.appendChild(ok);
+        }
+        Array.prototype.forEach.call(document.querySelectorAll(".role"), function (row) { row.classList.toggle("bad", !!bad[row.dataset.role]); });
+    }
+    function renderAssets() {
+        var box = $("assets"), t = tokens();
+        box.textContent = "";
+        SLOTS.forEach(function (slot) {
+            var key = slot[0], value = t.branding[key];
+            var div = document.createElement("div");
+            div.className = "asset";
+            var label = document.createElement("label");
+            label.textContent = slot[2];
+            label.style.gridColumn = "1 / -1";
+            var input = document.createElement("input");
+            input.type = "file";
+            input.accept = key === "loginBackground" ? ".png,.jpg,.jpeg,.webp,.gif,.svg" : ".png,.jpg,.jpeg,.webp,.gif,.ico,.svg";
+            input.setAttribute("aria-label", slot[2]);
+            var clear = document.createElement("button");
+            clear.type = "button";
+            clear.className = "btn small";
+            clear.textContent = "None";
+            var thumb = document.createElement("div");
+            thumb.className = "thumb";
+            var url = previewUrl(LT.skinPath(value));
+            if (url) { var img = document.createElement("img"); img.src = url; img.alt = ""; thumb.appendChild(img); }
+            var cap = document.createElement("span");
+            cap.textContent = value ? value : (key === "loginBackground" ? "none: the Lumen gradient" : key === "favicon" ? "none: Elastic's own" : "none");
+            thumb.appendChild(cap);
+            input.addEventListener("change", function () {
+                if (input.files[0]) upload(input.files[0], slot[1]).then(function (path) { set("branding." + key, path); update(true); }, status);
+            });
+            clear.addEventListener("click", function () { set("branding." + key, ""); update(true); });
+            div.appendChild(label);
+            div.appendChild(input);
+            div.appendChild(clear);
+            div.appendChild(thumb);
+            box.appendChild(div);
+        });
+        var fonts = Object.keys(media).filter(function (n) { return /\.woff2?$/.test(n); });
+        $("font-name").textContent = fonts.length ? "in the ZIP: " + fonts.map(function (n) { return "/storage/lumen/" + n; }).join(", ") : "";
+    }
+    function upload(file, base) {
+        return file.arrayBuffer().then(function (buf) {
+            var bytes = new Uint8Array(buf);
+            var ext = (file.name.split(".").pop() || "").toLowerCase();
+            if (!TYPES[ext]) throw "Not an image or font type the theme accepts.";
+            if (bytes.length > MAX) throw "Files can be up to 4 MB.";
+            if (ext === "svg" && SVG_BAD.test(new TextDecoder().decode(bytes))) throw "This SVG has scripts, event handlers or outside references; export it as a plain SVG or PNG.";
+            var name = base + "." + (ext === "jpeg" ? "jpg" : ext);
+            Object.keys(media).forEach(function (n) { if (n.split(".")[0] === base) delete media[n]; });
+            media[name] = { type: TYPES[ext], bytes: bytes };
+            media[name].url = bytesUrl(media[name]);
+            status("Added " + name + " (" + Math.round(bytes.length / 1024) + " KB).");
+            return "/storage/lumen/" + name;
+        });
+    }
+    function bindInputs() {
+        Array.prototype.forEach.call(document.querySelectorAll("[data-path]"), function (el) {
+            var path = el.getAttribute("data-path");
+            var ev = el.tagName === "SELECT" || el.type === "checkbox" ? "change" : "input";
+            el.addEventListener(ev, function () {
+                var v = el.type === "checkbox" ? el.checked : el.hasAttribute("data-num") ? Number(el.value) : el.value;
+                set(path, v);
+                update(false);
+            });
+        });
+    }
+    function fillInputs() {
+        Array.prototype.forEach.call(document.querySelectorAll("[data-path]"), function (el) {
+            var v = get(el.getAttribute("data-path"));
+            if (el.type === "checkbox") el.checked = !!v; else if (document.activeElement !== el) el.value = v;
+        });
+        $("name").value = tokens().meta.name;
+        $("description").value = tokens().meta.description;
+        $("product").value = tokens().branding.productName;
+    }
+    function outputs() {
+        var t = tokens();
+        $("scale-out").textContent = Math.round(t.typography.scale * 100) + " %";
+        $("weight-out").textContent = t.typography.headingWeight;
+        $("radius-out").textContent = t.radius.base + " px";
+        $("spacing-out").textContent = t.spacing.base + " px";
+    }
+    function update(full) {
+        if (full) { renderRoles(); renderAssets(); fillInputs(); }
+        $("mode-label").textContent = palette() === "light" ? "light" : "dark";
+        Array.prototype.forEach.call(document.querySelectorAll("[data-mode]"), function (b) { b.setAttribute("aria-pressed", String(b.dataset.mode === mode)); });
+        Array.prototype.forEach.call(document.querySelectorAll(".stage-bar [data-screen]"), function (b) { b.setAttribute("aria-pressed", String(b.dataset.screen === screen)); });
+        outputs();
+        renderContrast();
+        if (frameMode !== mode) writeFrame(); else paint();
+    }
+    function load(newDoc, label, files) {
+        var res = LT.normalize(newDoc, DEFAULT);
+        doc = clone(res.tokens);
+        media = files || {};
+        update(true);
+        status((label ? "Loaded " + label + ". " : "") + (res.errors.length ? "Replaced invalid values: " + res.errors.join(", ") + "." : ""));
+    }
+
+    // ---- ZIP (stored, no compression) ----------------------------------------------------
+    var CRC = (function () { var t = []; for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+    function crc32(d) { var c = 0xFFFFFFFF; for (var i = 0; i < d.length; i++) c = CRC[(c ^ d[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+    function zip(files) {
+        var enc = new TextEncoder(), local = [], central = [], offset = 0;
+        Object.keys(files).sort().forEach(function (name) {
+            var data = typeof files[name] === "string" ? enc.encode(files[name]) : files[name];
+            var nb = enc.encode(name), crc = crc32(data);
+            var h = new DataView(new ArrayBuffer(30));
+            h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
+            h.setUint16(10, 0, true); h.setUint16(12, 0x5821, true); h.setUint32(14, crc, true);
+            h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, nb.length, true);
+            local.push(new Uint8Array(h.buffer), nb, data);
+            var c = new DataView(new ArrayBuffer(46));
+            c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true);
+            c.setUint16(14, 0x5821, true); c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true);
+            c.setUint16(28, nb.length, true); c.setUint32(38, 0o100644 << 16, true); c.setUint32(42, offset, true);
+            central.push(new Uint8Array(c.buffer), nb);
+            offset += 30 + nb.length + data.length;
+        });
+        var size = central.reduce(function (s, a) { return s + a.length; }, 0);
+        var e = new DataView(new ArrayBuffer(22));
+        e.setUint32(0, 0x06054b50, true); e.setUint16(8, central.length / 2, true); e.setUint16(10, central.length / 2, true);
+        e.setUint32(12, size, true); e.setUint32(16, offset, true);
+        return new Blob(local.concat(central, [new Uint8Array(e.buffer)]), { type: "application/zip" });
+    }
+    function unzip(buf) {
+        var v = new DataView(buf), u8 = new Uint8Array(buf), dec = new TextDecoder(), end = -1;
+        for (var i = u8.length - 22; i >= Math.max(0, u8.length - 65557); i--) if (v.getUint32(i, true) === 0x06054b50) { end = i; break; }
+        if (end < 0) return Promise.reject("Not a ZIP file.");
+        var count = v.getUint16(end + 10, true), p = v.getUint32(end + 16, true), jobs = [];
+        for (var n = 0; n < count && n < 200; n++) {
+            var method = v.getUint16(p + 10, true), csize = v.getUint32(p + 20, true);
+            var nlen = v.getUint16(p + 28, true), xlen = v.getUint16(p + 30, true), clen = v.getUint16(p + 32, true);
+            var off = v.getUint32(p + 42, true), name = dec.decode(u8.subarray(p + 46, p + 46 + nlen));
+            var start = off + 30 + v.getUint16(off + 26, true) + v.getUint16(off + 28, true);
+            var raw = u8.subarray(start, start + csize);
+            jobs.push((function (name, method, raw) {
+                if (method === 0) return Promise.resolve([name, raw]);
+                if (method !== 8 || typeof DecompressionStream === "undefined") return Promise.resolve([name, null]);
+                return new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer()
+                    .then(function (b) { return [name, new Uint8Array(b)]; });
+            })(name, method, raw));
+            p += 46 + nlen + xlen + clen;
+        }
+        return Promise.all(jobs);
+    }
+    function importZip(buf, label) {
+        return unzip(buf).then(function (entries) {
+            var tokensText = null, files = {};
+            entries.forEach(function (e) {
+                if (!e[1]) return;
+                var parts = e[0].split("/");
+                var base = parts[parts.length - 1];
+                if (base === "lumen.tokens.json") tokensText = new TextDecoder().decode(e[1]);
+                else if (parts[parts.length - 2] === "custom" && /^[A-Za-z0-9._-]+$/.test(base)) {
+                    var ext = base.split(".").pop().toLowerCase();
+                    if (TYPES[ext] && e[1].length <= MAX) { files[base] = { type: TYPES[ext], bytes: e[1] }; files[base].url = bytesUrl(files[base]); }
+                }
+            });
+            if (!tokensText) throw "The ZIP has no lumen.tokens.json.";
+            load(JSON.parse(tokensText), label, files);
+        });
+    }
+    function save(blob, name) {
+        var url = URL.createObjectURL(blob), a = document.createElement("a");
+        a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+    }
+    function used(t) {
+        var text = JSON.stringify(t);
+        return Object.keys(media).filter(function (n) { return text.indexOf("/storage/lumen/" + n) >= 0; });
+    }
+
+    // ---- wiring --------------------------------------------------------------------------
+    ORDER.forEach(function (k) { var o = document.createElement("option"); o.value = k; o.textContent = PRESETS[k].meta.name; $("preset").appendChild(o); });
+    $("preset").addEventListener("change", function () { load(clone(PRESETS[this.value]), PRESETS[this.value].meta.name, media); });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-mode]"), function (b) {
+        b.addEventListener("click", function () { mode = b.dataset.mode; update(true); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll(".stage-bar [data-screen]"), function (b) {
+        b.addEventListener("click", function () { screen = b.dataset.screen; update(false); });
+    });
+    $("name").addEventListener("input", function () { set("meta.name", this.value.replace(/[<>]/g, "")); });
+    $("description").addEventListener("input", function () { set("meta.description", this.value.replace(/[<>]/g, "")); });
+    $("product").addEventListener("input", function () { set("branding.productName", this.value.replace(/[<>{}]/g, "")); update(false); });
+    $("f-font").addEventListener("change", function () {
+        var f = this.files[0];
+        if (f) upload(f, "font").then(function () { renderAssets(); }, status);
+    });
+    bindInputs();
+    $("dl-zip").addEventListener("click", function () {
+        var t = tokens(), files = {}, dir = "lumen-mail-" + slug(t.meta.name) + "/";
+        var text = LT.customizationFiles(t);
+        Object.keys(text).forEach(function (n) { files[dir + n] = text[n]; });
+        used(t).forEach(function (n) { files[dir + "custom/" + n] = media[n].bytes; });
+        save(zip(files), "lumen-mail-" + slug(t.meta.name) + ".zip");
+        status("Downloaded the customization ZIP (" + Object.keys(files).length + " files).");
+    });
+    $("export").addEventListener("click", function () {
+        var t = tokens();
+        save(new Blob([JSON.stringify(t, null, 2) + "\n"], { type: "application/json" }), slug(t.meta.name) + ".lumen.json");
+        var n = used(t).length;
+        status("Exported the token file." + (n ? " Uploaded files are only in the ZIP." : ""));
+    });
+    $("reset").addEventListener("click", function () { $("preset").value = "luminare"; load(clone(DEFAULT), "Luminare", {}); });
+    $("import").addEventListener("click", function () { $("import-text").value = ""; $("import-dialog").showModal(); });
+    $("import-dialog").addEventListener("close", function () {
+        var v = this.returnValue;
+        if (v === "file") $("file").click();
+        if (v === "paste") { try { load(JSON.parse($("import-text").value), "the pasted tokens", media); } catch (e) { status("That is not valid JSON."); } }
+    });
+    $("file").addEventListener("change", function () {
+        var f = this.files[0];
+        if (!f) return;
+        this.value = "";
+        f.arrayBuffer().then(function (buf) {
+            var b = new Uint8Array(buf);
+            if (b[0] === 0x50 && b[1] === 0x4B) return importZip(buf, f.name);
+            load(JSON.parse(new TextDecoder().decode(b)), f.name, media);
+        }).catch(function (e) { status("Could not import " + f.name + ": " + (e.message || e)); });
+    });
+
+    // Start state from the URL, for screenshots: #preset=aurora&mode=dark&screen=login
+    var hash = new URLSearchParams(location.hash.slice(1));
+    if (PRESETS[hash.get("preset")]) $("preset").value = hash.get("preset");
+    if (["light", "dark"].indexOf(hash.get("mode")) >= 0) mode = hash.get("mode");
+    if (["mail", "login"].indexOf(hash.get("screen")) >= 0) screen = hash.get("screen");
+    load(clone(PRESETS[$("preset").value]), "", {});
+    status("");
+})();
+</script>
+</body>
+</html>
