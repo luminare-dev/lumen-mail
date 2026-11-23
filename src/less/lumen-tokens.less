@@ -12,6 +12,10 @@
 //
 // Naming: @lm-<brand> for brand colours, @lm-light-<role> and @lm-dark-<role> for the two modes.
 // Every role in @lm-roles must exist in both modes (the contrast script checks this).
+//
+// A customization (a Lumen token file, compiled by tokens/roundcube.ts into lumen-custom.less) is
+// imported right after this file and redefines these variables; LESS takes the last definition
+// everywhere, also inside Elastic's colour functions, so one token file recolours the whole skin.
 
 // Brand colours (palette/tokens.json)
 @lm-lumen:          #5BDFFF;
@@ -56,6 +60,8 @@
 @lm-rail-label:     12px;
 @lm-toolbar-button-max: 11rem; // Elastic: 6rem; long toolbar labels get room
 @lm-popover-max:    28rem;  // Bootstrap: 276px; long menu entries get room
+@lm-page-font-size: 14px;   // Elastic's base size; a customization scales it (typography.scale)
+@lm-login-end:      #0B1630; // end of the login gradient, a shade between night and abyss
 
 // Light mode
 @lm-light-bg:                 @lm-mist;
