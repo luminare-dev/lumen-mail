@@ -15,6 +15,11 @@
    every file gets the licence banner.
 4. Write the stamp (lumen-build.stamp), move the result into place and run verify on it.
 
+With a customization (custom.py, Sources.custom_dir) the build also imports its lumen-custom.less
+after lumen-tokens.less, appends its lumen-custom.css to styles.css/.min.css before the url()
+step, copies its uploads to images/custom/ and writes its logos, favicon and browser colours into
+templates/includes/footer.html and meta.json.
+
 The command palette (palette/dist/lumen-palette.js, built by Vite beforehand) is part of every
 build: there is no switch to leave it out, so no build, install or release package can ship
 without it by accident. Tests use a stub bundle (tests/fixtures/lumen-palette.js).
@@ -34,6 +39,7 @@ from pathlib import Path
 
 from . import PARENT_SKIN, PROJECT_URL, SKIN_NAME, STAMP_NAME, STAMP_SCHEMA
 from .compiler import CompileJob, compiler_command, run_compiler
+from . import custom as _custom
 from .cssurls import CssUrl, resolve, rewrite_urls
 from .elastic import check_drift
 from .roundcube import Roundcube
@@ -52,6 +58,11 @@ ENTRIES = {
              "@import \"lumen-variables.less\";\n"
              "@import \"lumen-embed.less\";\n",
 }
+TOKENS_IMPORT = "@import \"lumen-tokens.less\";\n"
+# A customization's LESS (custom.py) comes right after the tokens it redefines; its CSS goes after
+# the compiled skin stylesheet (not into embed.css, the editor content).
+CUSTOM_LESS = "lumen-custom.less"
+CUSTOM_CSS_TARGETS = ("styles/styles.css", "styles/styles.min.css")
 CSS_OUTPUTS = ("styles/styles.css", "styles/styles.min.css", "styles/embed.css", "styles/embed.min.css")
 PALETTE_FILE = "lumen-palette.js"
 # Copied from the source root into every build (and so into every release package).
@@ -93,6 +104,9 @@ def build(opts: BuildOptions) -> BuildResult:
     sources.check()
     check_drift(rc, sources)
     sources.require_palette()
+    custom = None
+    if sources.custom_dir is not None and _custom.folder_digest(sources.custom_dir):
+        custom = _custom.load(sources.custom_dir, sources.skin_dir / "images")
     out = opts.out.resolve()
     if out.exists() and (not out.is_dir() or any(out.iterdir())):
         raise LumenError(f"{out} already exists and is not an empty directory")
@@ -113,8 +127,15 @@ def build(opts: BuildOptions) -> BuildResult:
         styles.mkdir(exist_ok=True)
         for name in LESS_FILES:
             shutil.copy2(sources.less_dir / name, styles / name)
+        entries = dict(ENTRIES)
+        if custom is not None:
+            info(f"customization: {custom.name or '(no name)'} ({custom.sha256[:19]})", opts.quiet)
+            _custom.apply_to_skin(custom, skin)
+            (styles / CUSTOM_LESS).write_text(custom.less, encoding="utf-8")
+            entries = {k: v.replace(TOKENS_IMPORT, TOKENS_IMPORT + f"@import \"{CUSTOM_LESS}\";\n")
+                       for k, v in ENTRIES.items()}
         jobs = []
-        for out_name, entry_text in ENTRIES.items():
+        for out_name, entry_text in entries.items():
             entry = styles / f"lumen-entry-{out_name}.less"
             entry.write_text(entry_text, encoding="utf-8")
             jobs.append(CompileJob(entry, styles / f"{out_name}.css", styles / f"{out_name}.min.css"))
@@ -132,12 +153,16 @@ def build(opts: BuildOptions) -> BuildResult:
         for rel in CSS_OUTPUTS:
             path = skin / rel
             css = path.read_text(encoding="utf-8")
+            if custom is not None and rel in CUSTOM_CSS_TARGETS:
+                css = css.rstrip("\n") + "\n" + custom.css
             css = finalize_css(css, rel, mirror, static_types)
             banner = BANNER.format(lumen_version=lumen_version, roundcube_version=roundcube_version,
                                    name=f"skins/{SKIN_NAME}/{rel}", project_url=PROJECT_URL)
             path.write_text(banner + css, encoding="utf-8")
         for name in LESS_FILES:
             (styles / name).unlink()
+        if custom is not None:
+            (styles / CUSTOM_LESS).unlink()
         for job in jobs:
             job.entry.unlink()
         now = (opts.now or source_date() or _dt.datetime.now(_dt.timezone.utc)).replace(microsecond=0)
@@ -149,6 +174,7 @@ def build(opts: BuildOptions) -> BuildResult:
             "elastic_digest": rc.elastic_digest(),
             "source_digest": sources.digest(),
             "palette": True,
+            "custom": None if custom is None else {"name": custom.name, "sha256": custom.sha256},
             "built_at": now.isoformat().replace("+00:00", "Z"),
             "compiler": result.get("versions", {}),
             "files": {p.as_posix(): sha256_file(skin / p) for p in walk_files(skin)},

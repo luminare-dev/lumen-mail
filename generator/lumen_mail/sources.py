@@ -16,6 +16,10 @@ The same layout is used in a git checkout and in the runtime copy that install-r
 
 Every location can be overridden: --source / LUMEN_MAIL_SOURCE for the root, --node-modules /
 LUMEN_MAIL_NODE_MODULES, --palette / LUMEN_MAIL_PALETTE.
+
+A customization (a customizer ZIP, see custom.py) lives outside the sources, in
+<state dir>/custom/ unless --custom / LUMEN_MAIL_CUSTOM names another folder; it is part of the
+source digest, so a changed customization makes sync rebuild.
 """
 
 from __future__ import annotations
@@ -69,6 +73,7 @@ class Sources:
     root: Path
     node_modules: Path = field(default=None)  # type: ignore[assignment]
     palette: Path = field(default=None)  # type: ignore[assignment]
+    custom_dir: Path | None = None   # a customization (custom.py), used when it holds files
 
     def __post_init__(self) -> None:
         if self.node_modules is None:
@@ -78,13 +83,14 @@ class Sources:
 
     @classmethod
     def locate(cls, root: str | os.PathLike | None = None, node_modules: str | os.PathLike | None = None,
-               palette: str | os.PathLike | None = None) -> "Sources":
+               palette: str | os.PathLike | None = None, custom: str | os.PathLike | None = None) -> "Sources":
         root = root or os.environ.get("LUMEN_MAIL_SOURCE") or PACKAGE_DIR.parent.parent
         node_modules = node_modules or os.environ.get("LUMEN_MAIL_NODE_MODULES")
         palette = palette or os.environ.get("LUMEN_MAIL_PALETTE")
         return cls(Path(root).resolve(),
                    Path(node_modules).resolve() if node_modules else None,  # type: ignore[arg-type]
-                   Path(palette).resolve() if palette else None)  # type: ignore[arg-type]
+                   Path(palette).resolve() if palette else None,  # type: ignore[arg-type]
+                   Path(custom).absolute() if custom else None)
 
     @property
     def less_dir(self) -> Path:
@@ -156,4 +162,13 @@ class Sources:
             h = hashlib.sha256((digest + "\0").encode())
             h.update(self.palette.read_bytes())
             digest = "sha256:" + h.hexdigest()
+        custom = self.custom_digest()
+        if custom:
+            digest = "sha256:" + hashlib.sha256(f"{digest}\0{custom}".encode()).hexdigest()
         return digest
+
+    def custom_digest(self) -> str | None:
+        """sha256 of the customization folder, None without one (a change makes sync rebuild)."""
+        from .custom import folder_digest  # local import: custom imports util only, but keep sources light
+
+        return folder_digest(self.custom_dir) if self.custom_dir else None

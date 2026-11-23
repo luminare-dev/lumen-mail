@@ -1,7 +1,7 @@
 """Command line: python3 -m lumen_mail <command> ... (or <prefix>/bin/lumen-mail <command> ...)
 
 Commands: build, verify, install, check, sync, status, rollback, resume, request-rebuild,
-uninstall, install-runtime. docs/cli.md describes every option.
+uninstall, apply-custom, install-runtime. docs/cli.md describes every option.
 
 Exit codes:
    0  ok (check: everything current)
@@ -61,6 +61,8 @@ def env_float(name: str, default: float) -> float:
 def add_source_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--source", help="lumen-mail sources (default: this checkout or runtime, or $LUMEN_MAIL_SOURCE)")
     p.add_argument("--node-modules", help="node_modules with less and clean-css (default: <source>/node_modules)")
+    p.add_argument("--custom", help="customization folder, used when it holds files (default: <state dir>/custom, "
+                                    "or $LUMEN_MAIL_CUSTOM)")
 
 
 def add_palette_args(p: argparse.ArgumentParser) -> None:
@@ -108,10 +110,17 @@ SOURCES_HINT = ["run the installed runtime (/opt/lumen-mail/bin/lumen-mail, see 
                 "user can read, or pass --source with such a folder"]
 
 
+def custom_from(args: argparse.Namespace) -> Path:
+    value = getattr(args, "custom", None) or os.environ.get("LUMEN_MAIL_CUSTOM")
+    if value:
+        return Path(value).absolute()
+    return StatePaths.locate(getattr(args, "state_dir", None)).root / "custom"
+
+
 def sources_from(args: argparse.Namespace) -> Sources:
     try:
         sources = Sources.locate(getattr(args, "source", None), getattr(args, "node_modules", None),
-                                 getattr(args, "palette", None))
+                                 getattr(args, "palette", None), custom_from(args))
     except PermissionError as exc:
         raise LumenError(f"cannot read the lumen-mail sources as {privileges.user_name(os.geteuid())}: {exc}",
                          SOURCES_HINT) from exc
@@ -125,8 +134,9 @@ def sources_from(args: argparse.Namespace) -> Sources:
 
 # Commands that continue as the Roundcube owner when started as root, and those among them that
 # write (they refuse a tree that belongs to root and prepare the state folder first).
-AS_OWNER = {"build", "install", "check", "sync", "status", "rollback", "resume", "request-rebuild", "uninstall"}
-WRITERS = {"install", "sync", "rollback", "resume", "request-rebuild", "uninstall"}
+AS_OWNER = {"build", "install", "check", "sync", "status", "rollback", "resume", "request-rebuild", "uninstall",
+            "apply-custom"}
+WRITERS = {"install", "sync", "rollback", "resume", "request-rebuild", "uninstall", "apply-custom"}
 
 
 def continue_as_owner(args: argparse.Namespace) -> None:
@@ -375,6 +385,28 @@ def configure_uninstall(p: argparse.ArgumentParser) -> None:
     p.add_argument("--force", action="store_true", help="remove the skin even if the system skin is (or may be) lumen")
 
 
+def cmd_apply_custom(args: argparse.Namespace) -> int:
+    from .apply import apply_custom
+
+    if bool(args.zip) == bool(args.reset):
+        raise UsageError("give a customizer ZIP (or a customization folder) or --reset")
+    lc = lifecycle_from(args)
+    return apply_custom(lc, Path(args.zip).absolute() if args.zip else None, reset=args.reset, yes=args.yes)
+
+
+def configure_apply_custom(p: argparse.ArgumentParser) -> None:
+    p.add_argument("zip", nargs="?", help="customizer ZIP, or a customization folder (for example a backup); "
+                                          "the Roundcube owner must be able to read it")
+    p.add_argument("--reset", action="store_true", help="remove the customization instead (plain Lumen look)")
+    p.add_argument("--yes", action="store_true", help="write: replace the customization and install")
+    add_common(p)
+    add_owner(p)
+    p.add_argument("--keep", type=int, default=5, help="backups to keep (default 5)")
+    p.add_argument("--lock-timeout", type=float, default=env_float("LUMEN_MAIL_LOCK_TIMEOUT", 30.0),
+                   help="seconds to wait for another run to finish (default 30), then exit 75")
+    add_builder(p)
+
+
 def cmd_install_runtime(args: argparse.Namespace) -> int:
     sources = sources_from(args)
     owner = resolve_owner(args.owner, Path("/")) if args.owner != "auto" else (0, 0)
@@ -409,6 +441,8 @@ register("resume", cmd_resume, configure_resume, "clear the hold that rollback s
 register("request-rebuild", cmd_request_rebuild, configure_resume, "make the next sync run rebuild skins/lumen")
 register("uninstall", cmd_uninstall, configure_uninstall,
          "move skins/lumen to the backups (refused while the system skin is lumen)")
+register("apply-custom", cmd_apply_custom, configure_apply_custom,
+         "check a customizer ZIP; with --yes put it in place and install (build, verify, swap)")
 register("install-runtime", cmd_install_runtime, configure_install_runtime,
          "copy what sync needs (generator, sources, compiler) into a folder such as /opt/lumen-mail")
 
