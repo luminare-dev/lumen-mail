@@ -1,0 +1,83 @@
+{
+    "version": 1,
+    "meta": {
+        "name": "Graphite",
+        "description": "Neutral greys with a blue accent and no Luminare logos."
+    },
+    "mode": {
+        "default": "system",
+        "allowToggle": true
+    },
+    "color": {
+        "dark": {
+            "canvas": "#0B0C0F",
+            "surfaceSunken": "#101216",
+            "surface": "#16181D",
+            "surfaceRaised": "#1E2128",
+            "border": "#2D313A",
+            "text": "#F2F3F5",
+            "textMuted": "#B4B9C3",
+            "accent": "#6EA8FE",
+            "accentSecondary": "#4C8DF6",
+            "accentText": "#8DBBFF",
+            "accentContrast": "#0B0C0F",
+            "success": "#58DD70",
+            "warning": "#FFB334",
+            "danger": "#FF6B61",
+            "info": "#7CC4FF",
+            "focus": "#8DBBFF"
+        },
+        "light": {
+            "canvas": "#F4F5F7",
+            "surfaceSunken": "#EBEDF0",
+            "surface": "#FFFFFF",
+            "surfaceRaised": "#F7F8FA",
+            "border": "#D9DCE2",
+            "text": "#14161A",
+            "textMuted": "#555B66",
+            "accent": "#1D5BD8",
+            "accentSecondary": "#2F6FEA",
+            "accentText": "#1D5BD8",
+            "accentContrast": "#FFFFFF",
+            "success": "#027A3D",
+            "warning": "#9A4503",
+            "danger": "#B71920",
+            "info": "#1F47C4",
+            "focus": "#2F6FEA"
+        }
+    },
+    "typography": {
+        "display": "Sora",
+        "body": "Sora",
+        "mono": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+        "stylesheet": "",
+        "scale": 1,
+        "headingWeight": 600
+    },
+    "radius": {
+        "base": 10
+    },
+    "spacing": {
+        "base": 4
+    },
+    "density": "comfortable",
+    "elevation": {
+        "shadow": "medium",
+        "borders": true
+    },
+    "layout": {
+        "sidebar": "flush",
+        "sidebarWidth": 280,
+        "indicator": "bar",
+        "contentWidth": "full",
+        "backgroundGlow": false
+    },
+    "branding": {
+        "productName": "",
+        "logoDark": "",
+        "logoLight": "",
+        "favicon": "",
+        "loginBackground": ""
+    },
+    "customCss": ""
+}

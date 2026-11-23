@@ -1,0 +1,83 @@
+{
+    "version": 1,
+    "meta": {
+        "name": "Aurora",
+        "description": "Deep violet surfaces with a mint to violet accent."
+    },
+    "mode": {
+        "default": "system",
+        "allowToggle": true
+    },
+    "color": {
+        "dark": {
+            "canvas": "#0B0716",
+            "surfaceSunken": "#110B22",
+            "surface": "#181030",
+            "surfaceRaised": "#22183F",
+            "border": "#352757",
+            "text": "#F5F1FF",
+            "textMuted": "#C5BCE0",
+            "accent": "#B79CFF",
+            "accentSecondary": "#06F2C4",
+            "accentText": "#C7B3FF",
+            "accentContrast": "#120A24",
+            "success": "#58DD70",
+            "warning": "#FFB334",
+            "danger": "#FF6B61",
+            "info": "#7CC4FF",
+            "focus": "#06F2C4"
+        },
+        "light": {
+            "canvas": "#F6F3FC",
+            "surfaceSunken": "#EEE8F8",
+            "surface": "#FFFFFF",
+            "surfaceRaised": "#FAF8FE",
+            "border": "#DDD3F0",
+            "text": "#1A1030",
+            "textMuted": "#574C70",
+            "accent": "#6A3FD1",
+            "accentSecondary": "#7C4DE8",
+            "accentText": "#5B33BD",
+            "accentContrast": "#FFFFFF",
+            "success": "#027A3D",
+            "warning": "#9A4503",
+            "danger": "#B71920",
+            "info": "#1F47C4",
+            "focus": "#7C4DE8"
+        }
+    },
+    "typography": {
+        "display": "Sora",
+        "body": "Sora",
+        "mono": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+        "stylesheet": "",
+        "scale": 1,
+        "headingWeight": 600
+    },
+    "radius": {
+        "base": 18
+    },
+    "spacing": {
+        "base": 4
+    },
+    "density": "comfortable",
+    "elevation": {
+        "shadow": "soft",
+        "borders": true
+    },
+    "layout": {
+        "sidebar": "floating",
+        "sidebarWidth": 280,
+        "indicator": "glow",
+        "contentWidth": "full",
+        "backgroundGlow": true
+    },
+    "branding": {
+        "productName": "",
+        "logoDark": "/lumen/brand/luminare-mark.svg",
+        "logoLight": "/lumen/brand/luminare-mark-brand-deep.svg",
+        "favicon": "/lumen/brand/favicon.svg",
+        "loginBackground": ""
+    },
+    "customCss": ""
+}

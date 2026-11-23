@@ -1,0 +1,11 @@
+{
+  "repository": "luminare-dev/lumen-hydrodactyl-theme",
+  "commit": "8ccc0d0c4f117ae47b0ca848f1c17d6a94868183",
+  "files": {
+    "overlay/files/resources/scripts/lumen/core.ts": "d273f5e9aa071271145db2ee42dc9589d6586db9d0a4ad1587a569e25507843b",
+    "overlay/files/resources/lumen/presets/luminare.json": "2523c0e33893a3788e81f4409428a7d3d32bfa52cb25c8193b5567395ca57c93",
+    "overlay/files/resources/lumen/presets/graphite.json": "fb5e932ede678316e30715c60bb1dae868c9ff40aa5b143b739c7179b92f9974",
+    "overlay/files/resources/lumen/presets/aurora.json": "6dc0ba571e756389d71614311446b94fe26b076d3040e2362fff1931d69dfb96",
+    "overlay/files/resources/lumen/presets/contrast.json": "6ffb572c06e755845f0efbfbac85ecc8f9059803b8f0160c0e880de9e86d90f8"
+  }
+}

@@ -1,0 +1,73 @@
+{
+    "version": 1,
+    "meta": {
+        "name": "Luminare",
+        "description": "Night and Mist surfaces with the Lumen cyan and Royal blue accents."
+    },
+    "mode": { "default": "system", "allowToggle": true },
+    "color": {
+        "dark": {
+            "canvas": "#060B17",
+            "surfaceSunken": "#0A1224",
+            "surface": "#0F1A30",
+            "surfaceRaised": "#17243F",
+            "border": "#24345A",
+            "text": "#F3F6FB",
+            "textMuted": "#B7C1D3",
+            "accent": "#5BDFFF",
+            "accentSecondary": "#2B8FF0",
+            "accentText": "#5BDFFF",
+            "accentContrast": "#0A1224",
+            "success": "#58DD70",
+            "warning": "#FFB334",
+            "danger": "#FF6B61",
+            "info": "#7CC4FF",
+            "focus": "#06F2C4"
+        },
+        "light": {
+            "canvas": "#F3F6FB",
+            "surfaceSunken": "#E8EDF5",
+            "surface": "#FFFFFF",
+            "surfaceRaised": "#F5F8FC",
+            "border": "#D6DDEA",
+            "text": "#0A1224",
+            "textMuted": "#4F5B73",
+            "accent": "#1F47C4",
+            "accentSecondary": "#2D63DE",
+            "accentText": "#1F47C4",
+            "accentContrast": "#FFFFFF",
+            "success": "#027A3D",
+            "warning": "#9A4503",
+            "danger": "#B71920",
+            "info": "#1F47C4",
+            "focus": "#2B8FF0"
+        }
+    },
+    "typography": {
+        "display": "Sora",
+        "body": "Sora",
+        "mono": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+        "stylesheet": "",
+        "scale": 1,
+        "headingWeight": 600
+    },
+    "radius": { "base": 14 },
+    "spacing": { "base": 4 },
+    "density": "comfortable",
+    "elevation": { "shadow": "soft", "borders": true },
+    "layout": {
+        "sidebar": "floating",
+        "sidebarWidth": 280,
+        "indicator": "pill",
+        "contentWidth": "full",
+        "backgroundGlow": true
+    },
+    "branding": {
+        "productName": "",
+        "logoDark": "/lumen/brand/luminare-mark.svg",
+        "logoLight": "/lumen/brand/luminare-mark-brand-deep.svg",
+        "favicon": "/lumen/brand/favicon.svg",
+        "loginBackground": ""
+    },
+    "customCss": ""
+}
