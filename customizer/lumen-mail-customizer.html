@@ -61,7 +61,8 @@ dialog { border: 1px solid var(--line); border-radius: 14px; background: var(--p
 dialog::backdrop { background: rgb(0 0 0 / 0.5); }
 .stage { position: sticky; top: 14px; }
 .stage-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
-.frame { width: 100%; height: min(820px, calc(100vh - 90px)); min-height: 520px; border: 1px solid var(--line); border-radius: 12px; background: #fff; box-shadow: 0 20px 50px -24px rgb(0 0 0 / 0.5); display: block; }
+.frame-box { position: relative; width: 100%; height: min(820px, calc(100vh - 90px)); min-height: 520px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #fff; box-shadow: 0 20px 50px -24px rgb(0 0 0 / 0.5); }
+.frame { position: absolute; inset: 0 auto auto 0; width: 1280px; border: 0; display: block; transform-origin: 0 0; }
 footer.page { padding: 0 24px 24px; color: var(--muted); font-size: 0.82rem; }
 code { font: 0.85em ui-monospace, Menlo, Consolas, monospace; }
 </style>
@@ -176,7 +177,7 @@ code { font: 0.85em ui-monospace, Menlo, Consolas, monospace; }
                 <button type="button" data-screen="login" aria-pressed="false">Login</button>
             </div>
         </div>
-        <iframe class="frame" id="frame" title="Preview of the webmail"></iframe>
+        <div class="frame-box" id="frame-box"><iframe class="frame" id="frame" title="Preview of the webmail"></iframe></div>
     </section>
 </main>
 <footer class="page">
@@ -1191,22 +1192,38 @@ root.LumenTokens = { SCHEMA_VERSION, COLOR_KEYS, ENUMS, RANGES, LIMITS, BRANDING
 
     // ---- preview -------------------------------------------------------------------------
     var frame = $("frame"), frameMode = null, frameReady = false;
+    // The mock is laid out at a desktop width (the panel and webmail switch to their phone layouts
+    // below 1024px) and scaled to fit the preview box.
+    function fit() {
+        var box = $("frame-box"), scale = Math.min(1, box.clientWidth / 1280);
+        frame.style.transform = "scale(" + scale + ")";
+        frame.style.height = Math.ceil(box.clientHeight / scale) + "px";
+    }
+    window.addEventListener("resize", fit);
+    fit();
     function writeFrame() {
         var html = "<!doctype html><html" + (mode === "dark" ? ' class="dark-mode"' : "") + "><head><meta charset=\"utf-8\">" +
-            "<style id=\"roles\"></style><style>" + ASSETS.css + "</style><style id=\"override\"></style>" +
+            "<style id=\"roles\">" + rolesCss() + "</style><style>" + ASSETS.css + "</style><style id=\"override\">" +
+            overrideCss().replace(/<\//g, "<\\/") + "</style>" +
             "<style>.mock-logo{display:inline-flex;align-items:center;justify-content:center}.mock-logo img{display:block}</style>" +
             "</head><body>" + document.getElementById("mock").innerHTML + "</body></html>";
         frameReady = false;
         frame.onload = function () { frameReady = true; frameMode = mode; paint(); };
         frame.srcdoc = html;
     }
+    function rolesCss() {
+        var t = tokens();
+        return ":root {\n" + LT.previewProperties(t, "light").join("\n") + "\n}\nhtml.dark-mode {\n" +
+            LT.previewProperties(t, "dark").join("\n") + "\n}\n";
+    }
+    function overrideCss() {
+        return LT.compileCss(tokens()).replace(/url\("\.\.(\/images\/[^"]+)"\)/g, function (all, p) { var u = previewUrl(p); return u ? 'url("' + u + '")' : "none"; });
+    }
     function paint() {
         if (!frameReady) return;
         var d = frame.contentDocument, t = tokens();
-        d.getElementById("roles").textContent = ":root {\n" + LT.previewProperties(t, "light").join("\n") + "\n}\nhtml.dark-mode {\n" +
-            LT.previewProperties(t, "dark").join("\n") + "\n}\n";
-        var css = LT.compileCss(t).replace(/url\("\.\.(\/images\/[^"]+)"\)/g, function (all, p) { var u = previewUrl(p); return u ? 'url("' + u + '")' : "none"; });
-        d.getElementById("override").textContent = css;
+        d.getElementById("roles").textContent = rolesCss();
+        d.getElementById("override").textContent = overrideCss();
         d.body.className = screen === "login" ? "task-login" : "task-mail";
         Array.prototype.forEach.call(d.querySelectorAll("[data-screen]"), function (el) { el.hidden = el.getAttribute("data-screen") !== screen; });
         var login = d.querySelector(".m-login");
