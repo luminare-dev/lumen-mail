@@ -43,6 +43,7 @@ contains a symbolic link (pass the real path). `--owner ''` keeps root and chang
 | `resume --roundcube R` | clears the hold: sync rebuilds again when the stamp is stale |
 | `request-rebuild --roundcube R` | the next `sync` run rebuilds even if the stamp is current |
 | `uninstall --roundcube R` | moves `skins/lumen` to the backups and stops sync from restoring it; refused while the system skin is lumen (`--force` overrides) |
+| `apply-custom ZIP --roundcube R` | checks a customizer ZIP (or a customization folder) and says what would change; with `--yes` moves the current customization to `<state>/custom-backups/<time>/`, writes the new one and runs `install`; puts the old one back if the install fails. `--reset` removes the customization ([customize](customize.md)) |
 | `install-runtime --prefix P` | copies the generator, the sources, the palette bundle and the compiler packages to `P` (default `/opt/lumen-mail`) and writes `P/bin/lumen-mail` |
 
 ## Options
@@ -59,6 +60,8 @@ contains a symbolic link (pass the real path). `--owner ''` keeps root and chang
 | `--min-available-mb N` | 300 (`$LUMEN_MAIL_MIN_AVAILABLE_MB`) | `sync`: MemAvailable needed to start the compiler; 0 turns the check off; while webmail is down the floor is 150 |
 | `--rebuild` | off | `sync`: rebuild even if current |
 | `--palette FILE` | `<source>/palette/dist/lumen-palette.js` (`$LUMEN_MAIL_PALETTE`); every build includes the palette and stops if the file is missing, there is no option to leave it out | building commands, `check`, `status`, `install-runtime` |
+| `--custom PATH` | `<state>/custom` (`$LUMEN_MAIL_CUSTOM`); used when it holds files, and part of the source digest, so `check` and `sync` rebuild after a change | all but `install-runtime` |
+| `--yes`, `--reset` | off | `apply-custom`: write; remove the customization |
 | `--source PATH`, `--node-modules PATH` | this checkout or runtime (`$LUMEN_MAIL_SOURCE`, `$LUMEN_MAIL_NODE_MODULES`) | all |
 | `--node PATH`, `--compiler CMD` | `node` from `PATH` (`$LUMEN_MAIL_NODE`, `$LUMEN_MAIL_COMPILER`) | building commands |
 | `--work-dir PATH` | `$TMPDIR` (`build`: next to `--out`) | building commands |
@@ -78,6 +81,8 @@ contains a symbolic link (pass the real path). `--owner ''` keeps root and chang
 | `<state>/backups/<time>-<reason>/lumen/` | replaced or removed builds (`replaced-install`, `replaced-stale`, `replaced-broken`, `replaced-rollback`, `uninstall`) |
 | `<state>/sync-state.json` | back-off after a failed rebuild, memory deferral (kind and start time only, so a repeated deferral writes nothing), hold, uninstalled marker |
 | `<state>/ROLLBACK.txt` | the undo commands of the last install, rollback or uninstall |
+| `<state>/custom/` | the customization (`apply-custom` writes it) |
+| `<state>/custom-backups/<time>/` | customizations `apply-custom` replaced or removed |
 | `<state>/lock` | `flock(2)` lock shared by every writing command |
 
 ## Exit codes
