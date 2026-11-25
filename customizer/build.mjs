@@ -67,8 +67,8 @@ function build(out) {
   const page = readFileSync(join(root, "customizer", "template.html"), "utf8")
     .replace("<!--@MOCK@-->", () => readFileSync(join(root, "customizer", "mock.html"), "utf8"))
     .replace("@VERSION@", () => version)
-    .replace("/*@PRESETS@*/", () => json(presets))
-    .replace("/*@ASSETS@*/", () => json(embedded))
+    .replace("/*@PRESETS@*/{}", () => json(presets))
+    .replace("/*@ASSETS@*/{}", () => json(embedded))
     .replace("/*@CORE@*/", () => coreScript());
   if (/@[A-Z]+@/.test(page)) throw new Error("template.html: a placeholder was not filled");
   mkdirSync(dirname(out), { recursive: true });

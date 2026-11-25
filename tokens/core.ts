@@ -341,8 +341,13 @@ export function cssUrl(value: string): string {
     return value === '' ? 'none' : `url("${value}")`;
 }
 
+/**
+ * Makes custom CSS safe inside a <style> element: every `<` becomes the CSS escape `\3c `, so no
+ * `</style`, `<!--` or `<script` can appear in the output, in any case or spelling. In a CSS string
+ * the escape still reads as `<`; anywhere else `<` is not valid CSS, so nothing working is lost.
+ */
 export function sanitizeCustomCss(css: string): string {
-    return css.replace(/<\/?\s*style/gi, '').replace(/<!--|-->/g, '');
+    return css.replace(/</g, '\\3c ');
 }
 
 function mix(a: string, b: string, percentOfA: string): string {
