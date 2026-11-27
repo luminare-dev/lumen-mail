@@ -8,6 +8,13 @@ the Conventional Commit titles of the merged pull requests; do not edit entries 
 <!-- release-please inserts each new release above the first line that starts with "## ["
      (or "## " and a digit). Keep the "Origin" entry below as the last entry of this file. -->
 
+## [0.2.0](https://github.com/luminare-dev/lumen-mail/compare/v0.1.2...v0.2.0) (2026-11-27)
+
+
+### Added
+
+* web customizer with shared Lumen tokens ([#19](https://github.com/luminare-dev/lumen-mail/issues/19)) ([4473760](https://github.com/luminare-dev/lumen-mail/commit/44737600ccd168165d69b54fb19ef03ab25df61c))
+
 ## [0.1.2](https://github.com/luminare-dev/lumen-mail/compare/v0.1.1...v0.1.2) (2026-11-07)
 
 
