@@ -1,0 +1,26 @@
+{
+  "empty": {},
+  "invalid": {
+    "version": 1,
+    "color": { "dark": { "accent": "cyan", "text": "#fff" }, "light": { "canvas": "#ABCDEF" } },
+    "radius": { "base": 40 },
+    "density": "tight",
+    "layout": { "indicator": "glow", "backgroundGlow": "yes" },
+    "branding": { "logoDark": "javascript:alert(1)", "favicon": "/etc/passwd" }
+  },
+  "uploads": {
+    "meta": { "name": "Example Hosting", "description": "Uploads and switches" },
+    "elevation": { "shadow": "none", "borders": false },
+    "layout": { "indicator": "bar", "backgroundGlow": false },
+    "typography": { "display": "Georgia, serif", "scale": 1.1, "headingWeight": 700 },
+    "branding": {
+      "productName": "Example Hosting",
+      "logoLight": "/storage/lumen/logo-light.png",
+      "logoDark": "/storage/lumen/logo-dark.svg",
+      "favicon": "https://cdn.example.org/favicon.ico",
+      "loginBackground": "/storage/lumen/login-background.jpg"
+    },
+    "customCss": "@font-face { font-family: X; src: url(\"/storage/lumen/font.woff2\"); }\n</style><script>x</script>\n.box { outline: 1px solid var(--lumen-accent); }"
+  },
+  "one-logo": { "branding": { "logoLight": "", "logoDark": "/lumen/brand/luminare-mark.svg", "favicon": "" } }
+}

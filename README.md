@@ -81,10 +81,19 @@ Fixes go into the latest minor release only.
 - As the system skin, Lumen needs `skins/lumen` to exist. KeyHelp removes the whole Roundcube
   folder on updates, so use the sync units there.
 
+## Customize
+
+Colours for light and dark mode, fonts, text size, radius, spacing, logos, favicon, login
+background and custom CSS come from a Lumen token file, the same format as the other Lumen
+themes. Open [customizer/lumen-mail-customizer.html](customizer/lumen-mail-customizer.html) in a
+browser (offline, nothing is uploaded), check the live preview and download a customization ZIP.
+On the server, `lumen-mail apply-custom <zip> --roundcube <root>` checks it and, with `--yes`,
+rebuilds the skin with it. See [docs/customize.md](docs/customize.md).
+
 ## Documentation
 
 [Installation](docs/install.md) · [Upgrade](docs/upgrade.md) ·
-[Configuration](docs/configuration.md) · [Command reference](docs/cli.md) ·
+[Configuration](docs/configuration.md) · [Customize](docs/customize.md) · [Command reference](docs/cli.md) ·
 [Update safety](docs/update-safety.md) · [Troubleshooting](docs/troubleshooting.md) ·
 [Runbook](docs/runbook.md) · [Development](docs/development.md) ·
 [Changelog](CHANGELOG.md)
@@ -112,7 +121,10 @@ release packages, are an adaptation of Roundcube's Elastic skin and are licensed
 [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/), like Elastic; the installed
 skin's `README.md` credits Elastic's authors. Sora is under the SIL Open Font License 1.1. The
 command palette and the gallery bundle React, React DOM and scheduler (MIT, Copyright (c) Meta
-Platforms, Inc. and affiliates; [third-party notices](THIRD_PARTY_NOTICES.md)).
+Platforms, Inc. and affiliates; [third-party notices](THIRD_PARTY_NOTICES.md)). A customization ZIP
+holds only compiled LESS variables and CSS overrides, the token file and your own uploads, never
+a Roundcube or Elastic file; the skin built from it on your server is CC BY-SA 3.0 like any other
+build.
 
 <!-- byline:studio -->
 *a [Luminare Development](https://luminare.tech/open-source/lumen-mail/) open-source project*

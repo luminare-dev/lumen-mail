@@ -1,5 +1,6 @@
-# Lint, tests and secret scan, plus the palette/gallery build (node) and the real
-# compile and release package against a pinned Roundcube (package).
+# Lint, tests and secret scan, plus the palette/gallery build (node), the real
+# compile and release package against a pinned Roundcube (package, also with every preset
+# customization) and the customizer page with screenshots of its preview (customizer).
 name: ci
 
 on:
@@ -116,6 +117,21 @@ jobs:
           LUMEN_MAIL_TEST_REQUIRE: "1"
         run: python3 -m unittest discover -s tests -p "test_lumen_integration.py" -v
 
+      - name: Build and verify the skin with every preset customization (real compile)
+        env:
+          RC: ${{ runner.temp }}/roundcube
+        run: |
+          set -euo pipefail
+          for preset in luminare graphite aurora contrast; do
+            node --experimental-strip-types --no-warnings tokens/compile.mjs \
+              --preset "$preset" --out "$RUNNER_TEMP/custom-$preset"
+            PYTHONPATH=generator python3 -m lumen_mail build --roundcube "$RC" \
+              --custom "$RUNNER_TEMP/custom-$preset" --out "$RUNNER_TEMP/skin-$preset" -q
+            PYTHONPATH=generator python3 -m lumen_mail verify "$RUNNER_TEMP/skin-$preset" --roundcube "$RC" -q
+            grep -q "Lumen tokens v1" "$RUNNER_TEMP/skin-$preset/styles/styles.min.css"
+          done
+          echo "4 customized builds verified"
+
       - name: Release package (tar.gz and zip with SHA256SUMS)
         run: |
           set -euo pipefail
@@ -127,5 +143,93 @@ jobs:
         with:
           name: lumen-package
           path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+  customizer:
+    name: customizer
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Shared token code matches shared.lock (local copies and the locked source commit)
+        run: python3 scripts/check_shared.py fetch
+
+      - name: Compile every preset into a customization folder
+        run: |
+          set -euo pipefail
+          for preset in luminare graphite aurora contrast; do
+            node --experimental-strip-types --no-warnings tokens/compile.mjs \
+              --preset "$preset" --out "dist/presets/$preset"
+          done
+          ls -l dist/presets/*
+
+      - name: The committed customizer page is current
+        run: |
+          node --no-warnings customizer/build.mjs --out customizer/lumen-mail-customizer.html
+          git diff --exit-code -- customizer/lumen-mail-customizer.html
+
+      - name: Parity (embedded compiler and tokens/*.ts, every preset and case)
+        run: |
+          node --experimental-strip-types --no-warnings tests/parity/run.mjs \
+            customizer/lumen-mail-customizer.html
+
+      - name: The page makes no request (no URL outside the CSP-blocked set)
+        run: |
+          set -euo pipefail
+          page=customizer/lumen-mail-customizer.html
+          grep -q "default-src 'none'" "$page"
+          if grep -o -E '(src|href)="https?://[^"]*"' "$page"; then
+            echo "error: the customizer page links an external resource" >&2
+            exit 1
+          fi
+
+      - name: Screenshots of the preview (headless Chrome)
+        run: |
+          set -euo pipefail
+          google-chrome --version
+          page="file://$PWD/customizer/lumen-mail-customizer.html"
+          mkdir -p screenshots
+          shot() { # name, hash
+            google-chrome --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=1 \
+              --window-size=1440,1000 --virtual-time-budget=5000 \
+              --screenshot="screenshots/$1.png" "$page#$2" 2>/dev/null
+            test -s "screenshots/$1.png"
+          }
+          for preset in luminare graphite aurora contrast; do
+            for mode in light dark; do
+              shot "$preset-$mode" "preset=$preset&mode=$mode"
+            done
+          done
+          shot luminare-login "preset=luminare&mode=light&screen=login"
+          shot aurora-login "preset=aurora&mode=dark&screen=login"
+          ls -l screenshots
+
+      - name: Keep the customizer page and the compiled presets
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: customizer
+          path: |
+            customizer/lumen-mail-customizer.html
+            dist/presets
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Keep the screenshots
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: customizer-screenshots
+          path: screenshots
           if-no-files-found: error
           retention-days: 14

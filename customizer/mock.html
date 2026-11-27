@@ -1,0 +1,83 @@
+<!-- Mock of the webmail for the customizer preview: our own markup and CSS (customizer/mock.css)
+     with the ids of Elastic's layout, so custom CSS shows here too. No Roundcube or Elastic file;
+     example data only. The customizer shows one screen at a time (data-screen) and fills the logos
+     (data-logo). -->
+<div data-screen="mail" id="layout">
+  <nav id="layout-menu" aria-label="Tasks">
+    <div class="m-logo"><span class="mock-logo" data-logo="app"></span></div>
+    <a class="m-compose" href="#mail"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16zM14 6l4 4"/></svg><span>Compose</span></a>
+    <div id="taskmenu">
+      <a class="selected" href="#mail"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v12H3zM3 7l9 6 9-6"/></svg><span>Mail</span></a>
+      <a href="#mail"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 20c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg><span>Contacts</span></a>
+      <a href="#mail"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span>Settings</span></a>
+      <a href="#mail" class="m-theme"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg><span>Dark mode</span></a>
+      <a href="#mail" class="logout"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3M14 4h6v16h-6"/></svg><span>Log out</span></a>
+    </div>
+  </nav>
+  <aside id="layout-sidebar" aria-label="Folders">
+    <div class="header"><span class="header-title">Mail</span></div>
+    <ul id="mailboxlist">
+      <li class="selected"><a href="#mail">Inbox <span class="unreadcount">3</span></a></li>
+      <li><a href="#mail">Drafts</a></li>
+      <li><a href="#mail">Sent</a></li>
+      <li><a href="#mail">Junk <span class="unreadcount">12</span></a></li>
+      <li><a href="#mail">Trash</a></li>
+      <li class="sub"><a href="#mail">Projects</a></li>
+      <li class="sub"><a href="#mail">Archive</a></li>
+    </ul>
+    <div class="m-quota"><span>Quota</span><div class="m-bar"><i style="width:42%"></i></div><small>2.1 GB of 5 GB</small></div>
+  </aside>
+  <section id="layout-list" aria-label="Messages">
+    <div class="header"><span class="header-title">Inbox</span><div class="searchbar"><input type="search" placeholder="Search" aria-label="Search"></div></div>
+    <table id="messagelist" class="listing">
+      <tbody>
+        <tr class="unread selected"><td><span class="flag-unread"></span><b>Lena Berger</b><time>09:41</time><p>Draft for the spring club letter</p></td></tr>
+        <tr class="unread"><td><span class="flag-unread"></span><b>Build server</b><time>08:15</time><p>Nightly build passed (42 checks)</p></td></tr>
+        <tr class="unread flagged"><td><span class="flag-unread"></span><b>Max Huber</b><time>Yesterday</time><p>Meeting minutes 2026-11 <span class="m-attach">PDF</span></p></td></tr>
+        <tr><td><b>Calendar</b><time>Mon</time><p>Team call moved to Thursday</p></td></tr>
+        <tr><td><b>Anna Gruber</b><time>Mon</time><p>Re: Photos from the trip</p></td></tr>
+        <tr class="deleted"><td><b>Parcel service</b><time>Sun</time><p>Your parcel is on its way</p></td></tr>
+      </tbody>
+    </table>
+  </section>
+  <main id="layout-content" aria-label="Message">
+    <div class="header">
+      <div class="toolbar">
+        <a class="button" href="#mail">Reply</a><a class="button" href="#mail">Reply all</a><a class="button" href="#mail">Forward</a><a class="button danger" href="#mail">Delete</a>
+      </div>
+    </div>
+    <article class="m-message">
+      <h2 class="subject">Draft for the spring club letter</h2>
+      <div class="m-from"><span class="m-avatar">LB</span><div><b>Lena Berger</b> &lt;lena@example.org&gt;<br><small>To you, today 09:41</small></div></div>
+      <div class="m-body">
+        <p>Hi,</p>
+        <p>here is the first draft for the spring club letter. The <a href="#mail">event page</a> is linked at the end.
+        Could you check the dates before Friday?</p>
+        <blockquote>The team call is now on Thursday at 10:00.</blockquote>
+        <p>Thanks,<br>Lena</p>
+      </div>
+      <div class="m-attachments"><span class="m-chip">club-letter-draft.pdf <small>184 KB</small></span><span class="m-chip">header.png <small>92 KB</small></span></div>
+      <div class="m-alerts">
+        <div class="m-alert success">Message sent.</div>
+        <div class="m-alert warning">This message contains remote images, which were blocked.</div>
+        <div class="m-alert error">The server is not reachable right now.</div>
+      </div>
+      <form class="m-form" onsubmit="return false">
+        <label for="m-reply">Quick reply</label>
+        <textarea id="m-reply" rows="2">Looks good, thank you!</textarea>
+        <div><button class="btn primary" type="button">Send</button> <button class="btn" type="button">Save draft</button></div>
+      </form>
+    </article>
+  </main>
+</div>
+<div data-screen="login" hidden class="m-login">
+  <div class="m-login-card">
+    <div class="m-login-logo"><span class="mock-logo" data-logo="login"></span></div>
+    <form onsubmit="return false">
+      <label for="l-user">Username</label><input id="l-user" type="text" value="paul@example.org" autocomplete="off">
+      <label for="l-pass">Password</label><input id="l-pass" type="password" value="example" autocomplete="off">
+      <button class="btn primary" type="button">Log in</button>
+    </form>
+  </div>
+  <p class="m-login-foot">Webmail, preview with example data</p>
+</div>

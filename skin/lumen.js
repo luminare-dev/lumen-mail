@@ -14,7 +14,8 @@
  *     over the admin's choice.
  * The menu rail and the login hero are Night in both colour modes, so the same image serves
  * light and dark mode. The image URLs come from data-src-* attributes on this script tag,
- * which Roundcube resolves (and cache-busts) like any other skin asset.
+ * which Roundcube resolves (and cache-busts) like any other skin asset; a customization writes
+ * its own there (or none, which keeps Elastic's logo) and its product name as data-alt.
  *
  * It also keeps the browser's theme-color in step with the page. meta.json's theme-color tags
  * follow the system setting, but Elastic switches colour modes with its own setting (the
@@ -32,8 +33,12 @@
     var root = document.documentElement;
     var login = rc.env.task === 'login' || /\btask-login\b/.test(document.body.className);
 
+    // A customization writes its page colours on the script tag (data-theme-light/-dark).
+    var light = script.getAttribute('data-theme-light') || '#F3F6FB';
+    var dark = script.getAttribute('data-theme-dark') || '#0A1224';
+
     function themeColor() {
-        var color = login || root.classList.contains('dark-mode') ? '#0A1224' : '#F3F6FB';
+        var color = login || root.classList.contains('dark-mode') ? dark : light;
         var metas = document.querySelectorAll('meta[name="theme-color"]');
         for (var i = 0; i < metas.length; i++) {
             metas[i].removeAttribute('media');
@@ -60,7 +65,7 @@
     }
 
     logo.setAttribute('src', main);
-    logo.setAttribute('alt', 'Luminare');
+    logo.setAttribute('alt', script.getAttribute('data-alt') || 'Luminare');
     logo.classList.add('lumen-logo');
 
     var logos = rc.env.additional_logos || {};

@@ -35,7 +35,9 @@ TOKEN_RE = re.compile(
 )
 ATTR_RE = re.compile(r"([a-z_-]+)(?:=\"([^\"]*)\")?", re.IGNORECASE)
 LABEL_RE = re.compile(r"^(lumen\.[a-z0-9_]+|[a-z0-9_]+)$")
-ALLOWED_SCRIPT_ATTRS = {"src", "defer"}
+ALLOWED_SCRIPT_ATTRS = {"src", "defer", "data-theme-light", "data-theme-dark", "data-alt"}
+HEX_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
+ALT_RE = re.compile(r"^[^<>{}\"]{1,80}$")
 
 
 def assemble(source: str, keep: set[str]) -> str:
@@ -110,6 +112,11 @@ def check_wrapper(rel: str, text: str) -> tuple[WrapperReport, list[str]]:
         elif m.group("script"):
             attrs = parse_attrs(m.group("sattrs") or "")
             bad = [a for a in attrs if a not in ALLOWED_SCRIPT_ATTRS and not a.startswith("data-src-")]
+            for key in ("data-theme-light", "data-theme-dark"):
+                if key in attrs and not HEX_RE.match(attrs[key]):
+                    problems.append(f"templates/{rel}: {key} must be #RRGGBB")
+            if "data-alt" in attrs and not ALT_RE.match(attrs["data-alt"]):
+                problems.append(f"templates/{rel}: data-alt must be plain text")
             if bad:
                 problems.append(f"templates/{rel}: script attribute(s) {bad} are not allowed")
             src = attrs.get("src", "")
